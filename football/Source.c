@@ -205,12 +205,12 @@ void show_teams() {
         strcpy(teamsData[index], teamName);
         getting_info(data, playersNumbers, 0, 1);
 
-        printf("||--------------------------------------|--------------|-----------------------||\n||");
-        print_col(teamName, 38);
+        printf("||---------------------------------------|--------------|-----------------------||\n||");
+        print_col(teamName, 39);
         print_col(trophies, 14);
         print_col(playersNumbers, 23);
-        printf("  |  ");
-        
+        printf("|");
+        printf("\n");
         index++;
     }
     printf("==================================================================================\n");
