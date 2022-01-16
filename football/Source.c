@@ -131,7 +131,7 @@ int add_player() {
     }
     FILE* players = fopen("players.txt", "a");
     id--;
-    fprintf(players, "none,%d,%d,%d,%d,%s,\n", id, attackingPower, defendingPower, value, playerName);
+    fprintf(players, "Free agent,%d,%d,%d,%d,%s,\n", id, attackingPower, defendingPower, value, playerName);
     fclose(players);
 
     
@@ -140,15 +140,21 @@ int add_player() {
 void print_col(char item[MAX_LENGHT],int characters) {
     int length = strlen(item);
     int spaces = (characters - length)/2;
-    if ((characters - length) % 2 != 0) {
-        printf(" ");
+    if (spaces <= 2) {
+        printf("%s", item);
     }
-    for (int i = 0; i < spaces; i++) {
-        printf(" ");
-    }
-    printf("%s", item);
-    for (int i = 0; i < spaces; i++) {
-        printf(" ");
+    else {
+        if ((characters - length) % 2 != 0) {
+            printf(" ");
+        }
+        for (int i = 0; i < spaces; i++) {
+            printf(" ");
+        }
+        
+        printf("%s", item);
+        for (int i = 0; i < spaces; i++) {
+            printf(" ");
+        }  
     }
     printf("|");
 }
@@ -157,35 +163,81 @@ void team_info(char teamName[MAX_LENGHT]) {
     system("cls");
     FILE* players = fopen("players.txt", "r");
     char data[MAX_LENGHT];
-
+    int numberOfPlayers = 0;
     printf("\n%s players\n", teamName);
     printf("======================================================================================================\n");
     printf("||               Player name               |   Value   |   Attacking power    |   Defending power   ||\n");
     //26 characters
-    while (fgets(data,MAX_LENGHT,players))
+    while (fgets(data, MAX_LENGHT, players))
     {
-        char playerTeam[MAX_LENGHT]="";
+        char playerTeam[MAX_LENGHT] = "";
         getting_info(data, playerTeam, 0, 1);
         if (strcmp(playerTeam, teamName) != 0) {
             continue;
         }
-        char attackingPower[4]="", defendingPower[4]="", value[3]="", name[MAX_LENGHT]="";
+        char attackingPower[4] = "", defendingPower[4] = "", value[3] = "", name[MAX_LENGHT] = "";
         getting_info(data, attackingPower, 2, 3);
         getting_info(data, defendingPower, 3, 4);
         getting_info(data, value, 4, 5);
         getting_info(data, name, 5, 6);
 
         printf("||-----------------------------------------|-----------|----------------------|---------------------||\n||");
-        print_col(name, 41);    
+        print_col(name, 41);
         print_col(value, 11);
         print_col(attackingPower, 22);
         print_col(defendingPower, 21);
         printf("|");
         printf("\n");
-        //printf("    %s     |   %s   |   %s    |   %s   \n",name,value,attackingPower,defendingPower);
+        numberOfPlayers++;
     }
     printf("======================================================================================================\n");
-    scanf("%d");
+    if (numberOfPlayers == 0) {
+        printf("This team has no players!!\n");
+    }
+    printf("Press enter to continue\n");
+    getchar();
+    getchar();
+}
+
+void show_players() {
+    system("cls");
+    FILE* players = fopen("players.txt", "r");
+    char data[MAX_LENGHT];
+    int numberOfPlayers = 0;
+    printf("\n");
+    printf("====================================================================================================================================================\n");
+    printf("||               Player name               |             Team name            |   Attacking power    |   Defending power   |   Value   |    id    ||\n");
+    while (fgets(data,MAX_LENGHT,players))
+    {
+        char teamName[MAX_LENGHT] = "",playerName[MAX_LENGHT]="", value[3]="", attackingPower[4]="", defendingPower[4]="", id[4]="";
+        getting_info(data, teamName, 0, 1);
+        getting_info(data, id, 1, 2);
+        getting_info(data, attackingPower, 2, 3);
+        getting_info(data, defendingPower, 3, 4);
+        getting_info(data, value, 4, 5);
+        getting_info(data, playerName, 5, 6);
+        //41 34 22 21 11 10
+        printf("||-----------------------------------------|----------------------------------|----------------------|---------------------|-----------|----------||\n||");
+        print_col(playerName, 41);
+        print_col(teamName, 34);
+        print_col(attackingPower, 22);
+        print_col(defendingPower, 21);
+        print_col(value, 11);
+        print_col(id, 10);
+        printf("|");
+        printf("\n");
+        numberOfPlayers++;
+
+    }
+    printf("====================================================================================================================================================\n");
+    if (numberOfPlayers == 0) {
+        printf("There is no player!!\n");
+    }
+    else {
+        printf("Press enter to continue\n");
+    }
+    getchar();
+    getchar();
 }
 
 void show_teams() {
@@ -215,22 +267,28 @@ void show_teams() {
     }
     printf("==================================================================================\n");
     fclose(teams);
-    int correct = 0;
-    do
-    {
-        printf("\nFor more info enter the team name: ");
-        scanf("%s", teamChoice);     
-        for (int i = 0; i < index; i++) {
-            if (strcmp(teamsData[i], teamChoice) == 0) {
-                correct = 1;
+    if (index == 0) {
+        printf("There isn't any team!!\nPress enter to continue");
+        getchar();
+        getchar();
+    }
+    else {
+        int correct = 0;
+        do
+        {
+            printf("\nFor more info enter the team name: ");
+            scanf("%s", teamChoice);
+            for (int i = 0; i < index; i++) {
+                if (strcmp(teamsData[i], teamChoice) == 0) {
+                    correct = 1;
+                }
             }
-        }
-        if (correct == 0) {
-            printf("Team name is incorrect\n");
-        }
-    } while (correct==0);
-    team_info(teamChoice);
-    
+            if (correct == 0) {
+                printf("Team name is incorrect\n");
+            }
+        } while (correct == 0);
+        team_info(teamChoice);
+    }
 }
 
 void admin_page() {
@@ -253,6 +311,9 @@ void admin_page() {
             add_player();
         } else if (choice == 3) {
             show_teams();
+        }
+        else if (choice == 4) {
+            show_players();
         }
     } while (1);
     
@@ -288,15 +349,34 @@ void change_password(char userName[MAX_LENGHT], char password[MAX_LENGHT]) {
 void coach_page(char teamName[MAX_LENGHT]) {
     system("cls");
     int choice;
-    printf("1)Buy a player\n");
-    printf("2)Sell a player\n");
-    printf("3)Select squad(Submit squad)\n");
-    printf("4)League Standing\n");
-    printf("5)Fixtures\n");
-    printf("6)Upcoming Opponent\n");
-    printf("7)Change Password\n");
-    printf("8)Upcoming Opponent\n");
-    scanf("%d", &choice);
+    FILE* teams = fopen("teams.txt", "r");
+    char data[MAX_LENGHT], budget[4] = "";;
+    while (fgets(data,MAX_LENGHT,teams))
+    {
+        char fileTeamName[MAX_LENGHT]="";
+        getting_info(data, fileTeamName, 3, 4);
+        if (strcmp(fileTeamName, teamName) == 0) {
+            getting_info(data, budget, 2, 3);
+            break;
+        }
+    }
+    do
+    {
+        printf("\nTeam budget: %s\n", budget);
+        printf("\n1)Buy a player\n");
+        printf("2)Sell a player\n");
+        printf("3)Select squad(Submit squad)\n");
+        printf("4)League Standing\n");
+        printf("5)Fixtures\n");
+        printf("6)Upcoming Opponent\n");
+        printf("7)Change Password\n");
+        printf("8)Upcoming Opponent\n");
+        scanf("%d", &choice);
+        if (choice == 1) {
+
+        }
+    } while (1);
+    
 
 }
 
@@ -320,7 +400,7 @@ int login() {
                 char userName[MAX_LENGHT] = "", userPassword[MAX_LENGHT] = "";
                 getting_info(data,userPassword,0,1);
                 getting_info(data, userName,1,2);
-                if (strcmp(userName, teamname) == 0 && strcmp(userPassword,password)==0) {
+                if (strcmp(userName, teamname) == 0 && strcmp(userPassword,password)==0) {                          
                     coach_page(teamname);
                 }
             }
@@ -402,6 +482,4 @@ int main()
 {
     files_initilize();
     login_page();
-    
-
 }
