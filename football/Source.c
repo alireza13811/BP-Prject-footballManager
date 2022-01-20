@@ -13,7 +13,7 @@ typedef struct{
     int value;
 } Players;
 
-typedef struct{
+ struct Teams{
     int id;
     char name[MAX_LENGHT];
     char email[MAX_LENGHT];
@@ -21,8 +21,8 @@ typedef struct{
     int budget;
     int numberOfPlayers;
     int trophies;
-    Players players[8];
-} Teams;
+    //Players players[8];
+};
 
 #define PLAYERS_SIZE sizeof(Players)
 //#define sizeof(Teams) sizeof(Teams)
@@ -95,7 +95,7 @@ int config_file_handling(int change) {
 void add_team() {
     system("cls");
     char email[MAX_LENGHT], teamName[MAX_LENGHT], inFileEmail[MAX_LENGHT]="";
-    Teams team1;
+    struct Teams team1;
     int isUnique = 1;
     do
     {   
@@ -107,7 +107,7 @@ void add_team() {
         scanf("%s", teamName);
 
         FILE* fptr = fopen("teams.txt", "r");
-        while (fread(&team1,sizeof(Teams), 1, fptr)) {
+        while (fread(&team1,sizeof(struct Teams), 1, fptr)) {
             if (strcmp(team1.name, teamName) == 0) {
                 isUnique = 0;
             }
@@ -121,7 +121,7 @@ void add_team() {
     } while (isUnique==0);
 
     int id = config_file_handling(0);
-    Teams team;
+    struct Teams team;
     if (id) {
         FILE* teams = fopen("teams.txt", "a");
         id--;
@@ -132,7 +132,7 @@ void add_team() {
         strcpy(team.name, teamName);
         strcpy(team.email, email);
         strcpy(team.password, email);
-        fwrite(&team, sizeof(Teams), 1, teams);
+        fwrite(&team, sizeof(struct Teams), 1, teams);
         fclose(teams);
     }
 }
@@ -292,7 +292,7 @@ void show_players() {
 
 void show_teams() {
     system("cls");
-    Teams team;
+    struct Teams team;
     FILE* teamsFile = fopen("teams.txt", "r");
     char  teamChoice[MAX_LENGHT],teamsData[100][MAX_LENGHT];
     int choice, index = 0;
@@ -301,8 +301,8 @@ void show_teams() {
     printf("==================================================================================\n");
     printf("||               Team name               |   trophies   |   Number of players   ||\n");
 
-    while (fread(&team,sizeof(Teams),1,teamsFile)) {
-        
+    while (fread(&team,sizeof(team),1,teamsFile)) {
+        int position = ftell(teamsFile);
         strcpy(teamsData[index], team.name);
 
         printf("||---------------------------------------|--------------|-----------------------||\n||");
@@ -370,9 +370,9 @@ void admin_page() {
 
 void change_password(char userName[MAX_LENGHT], char password[MAX_LENGHT]) {
     int i = 0;
-    Teams team,allTeams[100];
+    struct Teams team,allTeams[100];
     FILE* teamsFile = fopen("teams.txt", "r");
-    while (fread(&team,sizeof(Teams),1,teamsFile))
+    while (fread(&team,sizeof(struct Teams),1,teamsFile))
     {
         if (strcmp(team.name, userName) == 0) {
             *(team).password = password;
@@ -384,7 +384,7 @@ void change_password(char userName[MAX_LENGHT], char password[MAX_LENGHT]) {
     
     FILE* teamsFile2 = fopen("teams.txt", "w");
     for (int j =0 ; j < i;j++) {
-        fwrite(&allTeams[j], sizeof(Teams), 1, teamsFile2);
+        fwrite(&allTeams[j], sizeof(struct Teams), 1, teamsFile2);
     }
     fclose(teamsFile2);
 }
@@ -392,10 +392,10 @@ void change_password(char userName[MAX_LENGHT], char password[MAX_LENGHT]) {
 void coach_page(char teamName[MAX_LENGHT]) {
     system("cls");
     int choice;
-    Teams team;
+    struct Teams team;
     FILE* teamsFile = fopen("teams.txt", "r");
     
-    while (fread(&team,sizeof(Teams),1,teamsFile))
+    while (fread(&team,sizeof(struct Teams),1,teamsFile))
     {
         if (strcmp(team.name, teamName) == 0) {
             break;
@@ -424,7 +424,7 @@ void coach_page(char teamName[MAX_LENGHT]) {
 
 int login() {
     system("cls");
-    Teams team;
+    struct Teams team;
     char teamname[MAX_LENGHT], password[MAX_LENGHT];
     do
     {
@@ -438,7 +438,7 @@ int login() {
         }
         else {
             FILE* teamsFile = fopen("teams.txt", "r");
-            while (fread(&team,sizeof(Teams),1,teamsFile)) {
+            while (fread(&team,sizeof(struct Teams),1,teamsFile)) {
                 if (strcmp(team.name, teamname) == 0 && strcmp(team.password,password)==0) {                          
                     coach_page(teamname);
                     break;
@@ -452,7 +452,7 @@ int login() {
 
 void forget_password() {
     system("cls");
-    Teams team;
+    struct Teams team;
     int flag = 0;
     char email[MAX_LENGHT], teamName[MAX_LENGHT];
     do
@@ -464,7 +464,7 @@ void forget_password() {
         scanf("%s", email);
         FILE* teamsFile = fopen("teams.txt", "r");
         char password[MAX_LENGHT];
-        while (fread(&team,sizeof(Teams),1,teamsFile))
+        while (fread(&team,sizeof(struct Teams),1,teamsFile))
         {
             if (strcmp(team.password, teamName) == 0 && strcmp(team.password, email) == 0) {
                 flag = 1;
@@ -521,3 +521,4 @@ int main()
     login_page();
     
 }
+
