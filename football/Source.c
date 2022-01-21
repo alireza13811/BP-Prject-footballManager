@@ -14,6 +14,8 @@
 #define PLAYERS_SIZE sizeof(Players)
 #define TEAMS_SIZE sizeof(Teams)
 
+int trasferWindow;
+
 typedef struct{
     int id;
     char name[MAX_LENGHT];
@@ -23,11 +25,12 @@ typedef struct{
     int value;
 } Players;
 
- typedef struct{
+typedef struct{
     int id;
     int budget;
     int numberOfPlayers;
     int trophies;
+    int ready;
     char name[MAX_LENGHT];
     char email[MAX_LENGHT];
     char password[MAX_LENGHT];
@@ -48,20 +51,23 @@ void admin_page();
 int number_of_teams(int number1);
 void change_password(char userName[MAX_LENGHT], char password[MAX_LENGHT]);
 int is_in(int playersids[PLAYERS_SIZE], int id, int length);
+void change_teamsfile(Teams team);
+void change_playersfile(Players player);
 void buy_player(Players player, Teams team);
 void buy_player_page(Teams team);
+void sell_player(Players player, Teams team, int index);
+void sell_player_page(Teams team);
 void coach_page(char teamName[MAX_LENGHT]);
 int login();
 void forget_password();
 void login_page();
 void files_initilize();
-
+void submit_squad(Teams team);
 
 int main()
 {
     files_initilize();
     login_page();
-    
 }
 
 bool file_exists(char* filename) {
@@ -171,6 +177,7 @@ void add_team() {
         team.budget = 100;
         team.numberOfPlayers = 0;
         team.trophies = 0;
+        team.ready = 0;
         strcpy(team.name, teamName);
         strcpy(team.email, email);
         strcpy(team.password, email);
@@ -422,28 +429,17 @@ int number_of_teams(int number1) {
     return number;
 }
 
-void change_password(char userName[MAX_LENGHT], char password[MAX_LENGHT]) {
-    int i = 0;
+void change_password(char teamName[MAX_LENGHT], char password[MAX_LENGHT]) {
     Teams team;
     FILE* teamsFile = fopen("teams.txt", "r");
-    FILE* temp = fopen("temp.txt", "w+");
     while (fread(&team, sizeof(Teams), 1, teamsFile))
     {
-        if (strcmp(team.name, userName) == 0) {
+        if (strcmp(team.name, teamName) == 0) {
             strcpy(team.password, password);
+            break;
         }
-        i++;
-        fwrite(&team, TEAMS_SIZE, 1, temp);
     }
-    fclose(teamsFile);
-    fseek(temp, 0, SEEK_SET);
-
-    FILE* teamsFile2 = fopen("teams.txt", "w");
-    for (int j = 0; j < i; j++) {
-        fread(&team, TEAMS_SIZE, 1, temp);
-        fwrite(&team, TEAMS_SIZE, 1, teamsFile2);
-    }
-    fclose(teamsFile2);
+    change_teamsfile(team);
 }
 
 int is_in(int playersids[PLAYERS_SIZE], int id, int length) {
@@ -453,46 +449,58 @@ int is_in(int playersids[PLAYERS_SIZE], int id, int length) {
     return 0;
 }
 
+void change_teamsfile(Teams team) {
+
+    FILE* teamsFile = fopen("teams.txt", "r");
+    FILE* temp = fopen("temp.txt", "w+");
+    int number = number_of_teams(1);
+    Teams fileTeam;
+    while (fread(&fileTeam, TEAMS_SIZE, 1, teamsFile))
+    {
+        fwrite(&fileTeam, TEAMS_SIZE, 1, temp);
+    }
+    fclose(teamsFile);
+    fseek(temp, 0, SEEK_SET);
+    FILE* teamsFile2 = fopen("teams.txt", "w");
+    for (int j = 0; j < number; j++) {
+        fread(&fileTeam, TEAMS_SIZE, 1, temp);
+        if (strcmp(fileTeam.name, team.name) == 0) fwrite(&team, TEAMS_SIZE, 1, teamsFile2);
+        else fwrite(&fileTeam, TEAMS_SIZE, 1, teamsFile2);
+    }
+    fclose(teamsFile2);
+    fclose(temp);
+}
+
+void change_playersfile(Players player) {
+    FILE* playersFile = fopen("players.txt", "r");
+    FILE* temp2 = fopen("temp.txt", "w+");
+    int number2 = number_of_teams(2);//number2: number of players
+    Players filePlayer;
+    while (fread(&filePlayer, PLAYERS_SIZE, 1, playersFile))
+    {
+        fwrite(&filePlayer, PLAYERS_SIZE, 1, temp2);
+    }
+    fclose(playersFile);
+
+    fseek(temp2, 0, SEEK_SET);
+    FILE* playersFile2 = fopen("players.txt", "w");
+    for (int j = 0; j < number2; j++) {
+        fread(&filePlayer, PLAYERS_SIZE, 1, temp2);
+        if (filePlayer.id == player.id) fwrite(&player, PLAYERS_SIZE, 1, playersFile2);
+        else fwrite(&filePlayer, PLAYERS_SIZE, 1, playersFile2);
+    }
+    fclose(playersFile2);
+    fclose(temp2);
+}
+
 void buy_player(Players player, Teams team) {
     strcpy(player.teamName, team.name);
     team.players[team.numberOfPlayers] = player;
     team.numberOfPlayers++;
     team.budget -= player.value;
 
-    FILE* teamsFile = fopen("teams.txt", "r");
-    int number = number_of_teams(1), i = 0;//number: number of teams
-    Teams fileTeam, * allTeams = malloc(number * TEAMS_SIZE);
-    while (fread(&fileTeam, TEAMS_SIZE, 1, teamsFile))
-    {
-        allTeams[i] = fileTeam;
-        i++;
-    }
-    fclose(teamsFile);
-
-    FILE* teamsFile2 = fopen("teams.txt", "w");
-    for (int j = 0; j < number; j++) {
-        if (strcmp(allTeams[j].name, team.name) == 0) fwrite(&team, TEAMS_SIZE, 1, teamsFile2);
-        else fwrite(&allTeams[j], TEAMS_SIZE, 1, teamsFile2);
-    }
-    fclose(teamsFile2);
-
-    FILE* playersFile = fopen("players.txt", "r");
-    int number2 = number_of_teams(2);//number2: number of players
-    i = 0;
-    Players filePlayer, * allPlayers = malloc(number2 * PLAYERS_SIZE);
-    while (fread(&filePlayer, PLAYERS_SIZE, 1, playersFile))
-    {
-        allPlayers[i] = filePlayer;
-        i++;
-    }
-    fclose(playersFile);
-
-    FILE* playersFile2 = fopen("players.txt", "w");
-    for (int j = 0; j < number2; j++) {
-        if (allPlayers[j].id == player.id) fwrite(&player, PLAYERS_SIZE, 1, playersFile2);
-        else fwrite(&allPlayers[j], PLAYERS_SIZE, 1, playersFile2);
-    }
-    fclose(playersFile2);
+    change_teamsfile(team);
+    change_playersfile(player);
 }
 
 void buy_player_page(Teams team) {
@@ -549,6 +557,56 @@ void buy_player_page(Teams team) {
     coach_page(team.name);
 }
 
+void sell_player(Players player, Teams team, int index) {
+    team.players[index] = team.players[team.numberOfPlayers-1];
+    strcpy(player.teamName, "Free agent");
+    team.numberOfPlayers--;
+    team.budget += player.value;
+
+    change_playersfile(player);
+    change_teamsfile(team);
+}
+
+void sell_player_page(Teams team) {
+    system("cls");
+    printf("\n");
+    printf("=================================================================================================================\n");
+    printf("||               Player name               |   Attacking power    |   Defencing power   |   Value   |    id    ||\n");
+    for (int i = 0; i < team.numberOfPlayers; i++) {
+        printf("||-----------------------------------------|----------------------|---------------------|-----------|----------||\n||");
+        print_col_char(team.players[i].name, 41);
+        print_col_int(team.players[i].attackingPower, 22);
+        print_col_int(team.players[i].defencingPower, 21);
+        print_col_int(team.players[i].value, 11);
+        print_col_int(team.players[i].id, 10);
+        printf("|");
+        printf("\n");
+    }
+    printf("=================================================================================================================\n");
+    
+    int choice, flag = 0, index = 0;
+    do
+    {
+        printf("Please enter the player id: ");
+        scanf("%d", &choice);
+        for (int i = 0; i < team.numberOfPlayers; i++) {
+            if (team.players[i].id == choice) {
+                flag = 1;
+                index = i;
+                break;
+            }
+        }
+        if (flag == 0) printf("This id is not available\n");
+    } while (flag == 0);
+    sell_player(team.players[index],team,index);
+    coach_page(team.name);
+}
+
+void submit_squad(Teams team) {
+    team.ready = 1;
+    printf("Your squad submitted!\n");
+}
+
 void coach_page(char teamName[MAX_LENGHT]) {
     system("cls");
     int choice;
@@ -565,7 +623,8 @@ void coach_page(char teamName[MAX_LENGHT]) {
     printf("Team budget: %d    Number of players: %d\n", team.budget, team.numberOfPlayers);
     printf("1)Buy a player\n");
     printf("2)Sell a player\n");
-    printf("3)Select squad(Submit squad)\n");
+    if (trasferWindow) printf("3)Submit squad\n");
+    else printf("3)Select squad\n");
     printf("4)League Standing\n");
     printf("5)Fixtures\n");
     printf("6)Upcoming Opponent\n");
@@ -573,17 +632,38 @@ void coach_page(char teamName[MAX_LENGHT]) {
     printf("8)Upcoming Opponent\n");
     do
     {
+        printf("Enter your choice: ");
         scanf("%d", &choice);
         switch (choice)
         {
         case 1:
-            if (team.numberOfPlayers == 8) {
+            if (!trasferWindow) {
+                printf("Transfer window is closed!\n");
+            } else if (team.numberOfPlayers == 8) {
                 printf("You cannot buy more players!\n");
             }
             else {
                 buy_player_page(team);
             }break;
-
+        case 2:
+            if (!trasferWindow) {
+                printf("Transfer window is closed!\n");
+            }
+            else if (team.numberOfPlayers == 0) {
+                printf("You don't have any players!\n");
+            }
+            else {
+                sell_player_page(team);
+            }break;
+        case 3:
+            if (trasferWindow) {
+                if (team.numberOfPlayers != 8) printf("You don't have enough players to submit your squad!\n");
+                else submit_squad(team);
+            }
+            else {
+                //select_squad();
+            }
+            break;
         default:
             break;
         }
@@ -616,7 +696,7 @@ int login() {
             }
             fclose(teamsFile);
         }
-        printf("Team Name is incorrect!!\n");
+        printf("Team Name or password is incorrect!!\n");
     } while (1);
 }
 
@@ -682,7 +762,17 @@ void files_initilize() {
 
     if (!file_exists("config.txt")) {
         FILE* config = fopen("config.txt", "a");
-        fprintf(config, "0,0,");//first value:nomber of teams, second value:number of players
+        fprintf(config, "0,0,0,");//first value:nomber of teams, second value:number of players
+        fclose(config);
+    }
+    else {
+        FILE* config = fopen("config.txt", "r");
+        char transfer[3]="",data[10];
+        fgets(data, 10,config);
+        getting_info(data, transfer, 2, 3);
+        int inttransfer;
+        sscanf(transfer, "%d", &inttransfer);
+        trasferWindow = inttransfer;
         fclose(config);
     }
 }
