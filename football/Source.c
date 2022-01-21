@@ -11,6 +11,9 @@
 #define MAX_LENGHT 100
 #define MAX_PLAYERS 800
 #define MAX_TEAMS 100
+#define PLAYERS_SIZE sizeof(Players)
+#define TEAMS_SIZE sizeof(Teams)
+
 typedef struct{
     int id;
     char name[MAX_LENGHT];
@@ -31,19 +34,46 @@ typedef struct{
     Players players[8];
 }Teams;
 
-#define PLAYERS_SIZE sizeof(Players)
-#define TEAMS_SIZE sizeof(Teams)
+bool file_exists(char* filename);
+void getting_info(char data[MAX_LENGHT], char* item, int start, int end);
+int config_file_handling(int change);
+void add_team();
+int add_player();
+void print_col_char(char item[MAX_LENGHT], int characters);
+void print_col_int(int item, int characters);
+void team_info(char teamName[MAX_LENGHT]);
+void show_players();
+void show_teams();
+void admin_page();
+int number_of_teams(int number1);
+void change_password(char userName[MAX_LENGHT], char password[MAX_LENGHT]);
+int is_in(int playersids[PLAYERS_SIZE], int id, int length);
+void buy_player(Players player, Teams team);
+void buy_player_page(Teams team);
+void coach_page(char teamName[MAX_LENGHT]);
+int login();
+void forget_password();
+void login_page();
+void files_initilize();
+
+
+int main()
+{
+    files_initilize();
+    login_page();
+    
+}
 
 bool file_exists(char* filename) {
-     struct stat   buffer;
-     return (stat(filename, &buffer) == 0);
- }
+    struct stat   buffer;
+    return (stat(filename, &buffer) == 0);
+}
 
-void getting_info(char data[MAX_LENGHT],char* item,int start,int end) {
-    int counter = 1,startposition;
-    char inFileTeamName[MAX_LENGHT]="";
+void getting_info(char data[MAX_LENGHT], char* item, int start, int end) {
+    int counter = 1, startposition;
+    char inFileTeamName[MAX_LENGHT] = "";
     for (int i = 0; i < MAX_LENGHT; i++) {
-        if (data[i] == ',' && i!=0) {
+        if (data[i] == ',' && i != 0) {
             if (start == 0) {
                 strncpy(item, data, i);
                 break;
@@ -56,34 +86,34 @@ void getting_info(char data[MAX_LENGHT],char* item,int start,int end) {
                 break;
             }
             counter++;
-        } 
+        }
     }
 }
 
 int config_file_handling(int change) {
     //change-> 0:adding team, 1:adding player
-    char teamId[4]="", playerId[4]="", line[10];
-    int id=0;
+    char teamId[4] = "", playerId[4] = "", line[10];
+    int id = 0;
     FILE* config = fopen("config.txt", "r");
     fgets(line, 10, config);
-    getting_info(line, teamId,0,1);
+    getting_info(line, teamId, 0, 1);
     getting_info(line, playerId, 1, 2);
     fclose(config);
 
     FILE* config2 = fopen("config.txt", "w");
-    if (change == 0) {       
+    if (change == 0) {
         sscanf(teamId, "%d", &id);
         if (id == 100) {
             printf("You cannot add more teams!!\n");
             fclose(config2);
             return 0;
-        }  
+        }
         id++;
         fprintf(config2, "%d,", id);
-        
+
     }
-    else {        
-        fprintf(config2, "%s,", teamId); 
+    else {
+        fprintf(config2, "%s,", teamId);
     }
 
     if (change == 1) {
@@ -95,7 +125,7 @@ int config_file_handling(int change) {
         }
         id++;
         fprintf(config2, "%d,", id);
-        
+
     }
     else {
         fprintf(config2, "%s,", playerId);
@@ -106,12 +136,12 @@ int config_file_handling(int change) {
 
 void add_team() {
     system("cls");
-    char email[MAX_LENGHT], teamName[MAX_LENGHT], inFileEmail[MAX_LENGHT]="";
+    char email[MAX_LENGHT], teamName[MAX_LENGHT], inFileEmail[MAX_LENGHT] = "";
     Teams team1;
     int isUnique = 1;
     do
-    {   
-        
+    {
+
         isUnique = 1;
         printf("Coach email:");
         scanf("%s", email);
@@ -119,7 +149,7 @@ void add_team() {
         scanf("%s", teamName);
 
         FILE* fptr = fopen("teams.txt", "r");
-        while (fread(&team1,sizeof(Teams), 1, fptr)) {
+        while (fread(&team1, sizeof(Teams), 1, fptr)) {
             if (strcmp(team1.name, teamName) == 0) {
                 isUnique = 0;
             }
@@ -130,7 +160,7 @@ void add_team() {
             printf("\nTeam name has already been got!\n");
         }
 
-    } while (isUnique==0);
+    } while (isUnique == 0);
 
     int id = config_file_handling(0);
     Teams team;
@@ -161,7 +191,7 @@ int add_player() {
     scanf("%d", &defendingPower);
     printf("Value: ");
     scanf("%d", &value);
-    
+
     int id = config_file_handling(1);
     if (id == 0) {
         return 0;
@@ -178,12 +208,12 @@ int add_player() {
     fwrite(&player, PLAYERS_SIZE, 1, playersFile);
     fclose(playersFile);
 
-    
+
 }
 
-void print_col_char(char item[MAX_LENGHT],int characters) {
+void print_col_char(char item[MAX_LENGHT], int characters) {
     int length = strlen(item);
-    int spaces = (characters - length)/2;
+    int spaces = (characters - length) / 2;
     if (spaces <= 2) {
         printf("%s", item);
     }
@@ -194,18 +224,18 @@ void print_col_char(char item[MAX_LENGHT],int characters) {
         for (int i = 0; i < spaces; i++) {
             printf(" ");
         }
-        
+
         printf("%s", item);
         for (int i = 0; i < spaces; i++) {
             printf(" ");
-        }  
+        }
     }
     printf("|");
 }
 
 void print_col_int(int item, int characters) {
-    int digits = 0,item2=item;
-    while (item2>0)
+    int digits = 0, item2 = item;
+    while (item2 > 0)
     {
         item2 /= 10;
         digits++;
@@ -241,7 +271,7 @@ void team_info(char teamName[MAX_LENGHT]) {
     printf("======================================================================================================\n");
     printf("||               Player name               |   Value   |   Attacking power    |   Defencing power   ||\n");
     //26 characters
-    while (fread(&player,PLAYERS_SIZE,1,playersFile))
+    while (fread(&player, PLAYERS_SIZE, 1, playersFile))
     {
         if (strcmp(player.teamName, teamName) != 0) {
             continue;
@@ -274,9 +304,9 @@ void show_players() {
     printf("\n");
     printf("====================================================================================================================================================\n");
     printf("||               Player name               |             Team name            |   Attacking power    |   Defending power   |   Value   |    id    ||\n");
-    while (fread(&player,PLAYERS_SIZE,1,playersFile))
+    while (fread(&player, PLAYERS_SIZE, 1, playersFile))
     {
-        
+
         //41 34 22 21 11 10
         printf("||-----------------------------------------|----------------------------------|----------------------|---------------------|-----------|----------||\n||");
         print_col_char(player.name, 41);
@@ -306,14 +336,14 @@ void show_teams() {
     system("cls");
     Teams team;
     FILE* teamsFile = fopen("teams.txt", "r");
-    char  teamChoice[MAX_LENGHT],teamsData[100][MAX_LENGHT];
+    char  teamChoice[MAX_LENGHT], teamsData[100][MAX_LENGHT];
     int choice, index = 0;
 
     printf("\n");
     printf("==================================================================================\n");
     printf("||               Team name               |   trophies   |   Number of players   ||\n");
 
-    while (fread(&team,sizeof(team),1,teamsFile)) {
+    while (fread(&team, sizeof(team), 1, teamsFile)) {
         int position = ftell(teamsFile);
         strcpy(teamsData[index], team.name);
 
@@ -352,7 +382,7 @@ void show_teams() {
 }
 
 void admin_page() {
-    
+
     int choice;
     do
     {
@@ -369,22 +399,23 @@ void admin_page() {
         }
         else if (choice == 2) {
             add_player();
-        } else if (choice == 3) {
+        }
+        else if (choice == 3) {
             show_teams();
         }
         else if (choice == 4) {
             show_players();
         }
     } while (1);
-    
-    
+
+
 }
 
-int number_of_teams(int number) {
+int number_of_teams(int number1) {
     FILE* config = fopen("config.txt", "r");
     char data[10], teamNumber[10] = "";
     fgets(data, 10, config);
-    getting_info(data, teamNumber, number-1, number);
+    getting_info(data, teamNumber, number1 - 1, number1);
     int number;
     sscanf(teamNumber, "%d", &number);
     fclose(config);
@@ -393,59 +424,50 @@ int number_of_teams(int number) {
 
 void change_password(char userName[MAX_LENGHT], char password[MAX_LENGHT]) {
     int i = 0;
-    int number = number_of_teams(1);
-    Teams* ptr = malloc(number*sizeof(Teams));
     Teams team;
     FILE* teamsFile = fopen("teams.txt", "r");
-    while (fread(&team,sizeof(Teams),1,teamsFile))
+    FILE* temp = fopen("temp.txt", "w+");
+    while (fread(&team, sizeof(Teams), 1, teamsFile))
     {
         if (strcmp(team.name, userName) == 0) {
             strcpy(team.password, password);
         }
-        ptr[i] = team;
         i++;
+        fwrite(&team, TEAMS_SIZE, 1, temp);
     }
     fclose(teamsFile);
-    
+    fseek(temp, 0, SEEK_SET);
+
     FILE* teamsFile2 = fopen("teams.txt", "w");
-    for (int j =0 ; j < i;j++) {
-        fwrite(&ptr[j], sizeof(Teams), 1, teamsFile2);
+    for (int j = 0; j < i; j++) {
+        fread(&team, TEAMS_SIZE, 1, temp);
+        fwrite(&team, TEAMS_SIZE, 1, teamsFile2);
     }
     fclose(teamsFile2);
 }
 
-int is_in(char names[800],char name[MAX_LENGHT],int length) {
+int is_in(int playersids[PLAYERS_SIZE], int id, int length) {
     for (int i = 0; i < length; i++) {
-        if (strcmp(names[i], name) == 0) return 1;
+        if (playersids[i] == id) return 1;
     }
     return 0;
 }
 
-void buy_player(Players player,Teams team) {
+void buy_player(Players player, Teams team) {
+    strcpy(player.teamName, team.name);
     team.players[team.numberOfPlayers] = player;
     team.numberOfPlayers++;
-    strcpy(player.teamName , team.name);
+    team.budget -= player.value;
 
     FILE* teamsFile = fopen("teams.txt", "r");
     int number = number_of_teams(1), i = 0;//number: number of teams
-    Teams fileTeam, * allTeams = malloc(number * TEAMS_SIZE);  
-    while (fread(&fileTeam,TEAMS_SIZE,1,teamsFile))
+    Teams fileTeam, * allTeams = malloc(number * TEAMS_SIZE);
+    while (fread(&fileTeam, TEAMS_SIZE, 1, teamsFile))
     {
         allTeams[i] = fileTeam;
         i++;
     }
     fclose(teamsFile);
-
-    FILE* playersFile = fopen("players.txt", "r");
-    int number2 = number_of_teams(2);//number2: number of players
-    i = 0;
-    Teams filePlayer, * allPlayers = malloc(number2 * PLAYERS_SIZE);
-    while (fread(&filePlayer, PLAYERS_SIZE, 1, playersFile))
-    {
-        allPlayers[i] = filePlayer;
-        i++;
-    }
-    fclose(playersFile);
 
     FILE* teamsFile2 = fopen("teams.txt", "w");
     for (int j = 0; j < number; j++) {
@@ -453,6 +475,17 @@ void buy_player(Players player,Teams team) {
         else fwrite(&allTeams[j], TEAMS_SIZE, 1, teamsFile2);
     }
     fclose(teamsFile2);
+
+    FILE* playersFile = fopen("players.txt", "r");
+    int number2 = number_of_teams(2);//number2: number of players
+    i = 0;
+    Players filePlayer, * allPlayers = malloc(number2 * PLAYERS_SIZE);
+    while (fread(&filePlayer, PLAYERS_SIZE, 1, playersFile))
+    {
+        allPlayers[i] = filePlayer;
+        i++;
+    }
+    fclose(playersFile);
 
     FILE* playersFile2 = fopen("players.txt", "w");
     for (int j = 0; j < number2; j++) {
@@ -466,8 +499,8 @@ void buy_player_page(Teams team) {
     system("cls");
     FILE* playersFile = fopen("players.txt", "r");
     Players player;
-    char playersName[MAX_PLAYERS];
-    int length = 0;
+    int numbofPlayers = number_of_teams(2);
+    int index = 0, * playersids = (int*)malloc(numbofPlayers * sizeof(int));
     printf("\n");
     printf("=================================================================================================================\n");
     printf("||               Player name               |   Attacking power    |   Defencing power   |   Value   |    id    ||\n");
@@ -475,7 +508,7 @@ void buy_player_page(Teams team) {
         fseek(playersFile, 0, SEEK_SET);
         while (fread(&player, PLAYERS_SIZE, 1, playersFile))
         {
-            if ((strcmp(player.teamName, "Free agent") != 0) && !is_in(playersName, player.name, length)) continue;
+            if (strcmp(player.teamName, "Free agent") != 0 && !is_in(playersids, player.id, index)) continue;
             if (i != player.value) continue;
 
             printf("||-----------------------------------------|----------------------|---------------------|-----------|----------||\n||");
@@ -486,20 +519,24 @@ void buy_player_page(Teams team) {
             print_col_int(player.id, 10);
             printf("|");
             printf("\n");
-            playersName[length] = player.name;
-            
-            length++;
+            playersids[index] = player.id;
+            index++;
         }
     }
-    fseek(playersFile, 0, SEEK_SET); 
-    int choice,flag=0;
+    printf("=================================================================================================================\n");
+    fseek(playersFile, 0, SEEK_SET);
+    int choice, flag = 0;
     do
     {
         printf("Please enter the player id: ");
         scanf("%d", &choice);
         while (fread(&player, PLAYERS_SIZE, 1, playersFile))
         {
-            if (is_in(playersName, player.name, length - 1) && choice == player.id) {
+            if (is_in(playersids, player.id, index) && choice == player.id) {
+                if (team.budget - player.value < 0) {
+                    printf("Your budget is not enough! ");
+                    break;
+                }
                 flag = 1;
                 break;
             }
@@ -507,8 +544,9 @@ void buy_player_page(Teams team) {
         if (flag == 0) {
             printf("Player id is not available!\n");
         }
-    } while (flag=0);
-    buy_player(player,team);
+    } while (flag == 0);
+    buy_player(player, team);
+    coach_page(team.name);
 }
 
 void coach_page(char teamName[MAX_LENGHT]) {
@@ -516,31 +554,41 @@ void coach_page(char teamName[MAX_LENGHT]) {
     int choice;
     Teams team;
     FILE* teamsFile = fopen("teams.txt", "r");
-    
-    while (fread(&team,sizeof(Teams),1,teamsFile))
+
+    while (fread(&team, sizeof(Teams), 1, teamsFile))
     {
         if (strcmp(team.name, teamName) == 0) {
             break;
         }
     }
     fclose(teamsFile);
+    printf("Team budget: %d    Number of players: %d\n", team.budget, team.numberOfPlayers);
+    printf("1)Buy a player\n");
+    printf("2)Sell a player\n");
+    printf("3)Select squad(Submit squad)\n");
+    printf("4)League Standing\n");
+    printf("5)Fixtures\n");
+    printf("6)Upcoming Opponent\n");
+    printf("7)Change Password\n");
+    printf("8)Upcoming Opponent\n");
     do
     {
-        printf("Team budget: %d\n", team.budget);
-        printf("1)Buy a player\n");
-        printf("2)Sell a player\n");
-        printf("3)Select squad(Submit squad)\n");
-        printf("4)League Standing\n");
-        printf("5)Fixtures\n");
-        printf("6)Upcoming Opponent\n");
-        printf("7)Change Password\n");
-        printf("8)Upcoming Opponent\n");
         scanf("%d", &choice);
-        if (choice == 1) {
-            buy_player_page(team);
+        switch (choice)
+        {
+        case 1:
+            if (team.numberOfPlayers == 8) {
+                printf("You cannot buy more players!\n");
+            }
+            else {
+                buy_player_page(team);
+            }break;
+
+        default:
+            break;
         }
     } while (1);
-    
+
 
 }
 
@@ -560,8 +608,8 @@ int login() {
         }
         else {
             FILE* teamsFile = fopen("teams.txt", "r");
-            while (fread(&team,sizeof(Teams),1,teamsFile)) {
-                if (strcmp(team.name, teamname) == 0 && strcmp(team.password,password)==0) {                          
+            while (fread(&team, sizeof(Teams), 1, teamsFile)) {
+                if (strcmp(team.name, teamname) == 0 && strcmp(team.password, password) == 0) {
                     coach_page(teamname);
                     break;
                 }
@@ -579,29 +627,29 @@ void forget_password() {
     char email[MAX_LENGHT], teamName[MAX_LENGHT];
     do
     {
-        
+
         printf("Team name: ");
         scanf("%s", teamName);
         printf("Email: ");
         scanf("%s", email);
         FILE* teamsFile = fopen("teams.txt", "r");
         char password[MAX_LENGHT];
-        while (fread(&team,sizeof(Teams),1,teamsFile))
+        while (fread(&team, sizeof(Teams), 1, teamsFile))
         {
             if (strcmp(team.name, teamName) == 0 && strcmp(team.email, email) == 0) {
                 flag = 1;
                 fclose(teamsFile);
                 printf("Enter new password: ");
                 scanf("%s", password);
-                change_password(teamName,password);
+                change_password(teamName, password);
             }
         }
         if (flag == 0) {
             printf("Team name or email is incorrect!!\n");
             fclose(teamsFile);
         }
-    } while (flag==0);
-    
+    } while (flag == 0);
+
 }
 
 void login_page() {
@@ -626,7 +674,7 @@ void files_initilize() {
         FILE* teams = fopen("teams.txt", "a");
         fclose(teams);
     }
-     
+
     if (!file_exists("players.txt")) {
         FILE* players = fopen("players.txt", "a");
         fclose(players);
@@ -637,12 +685,5 @@ void files_initilize() {
         fprintf(config, "0,0,");//first value:nomber of teams, second value:number of players
         fclose(config);
     }
-}
-
-int main()
-{
-    files_initilize();
-    login_page();
-    
 }
 
