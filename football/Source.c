@@ -14,6 +14,7 @@
 #define TEAMS_SIZE sizeof(Teams)
 
 int transferWindow;
+int leagueStatus;
 
 typedef struct {
 	int id;
@@ -47,8 +48,10 @@ typedef struct {
 	int lost;
 	int points;
 	int othersid[3];
+	char results[6][30];
 	char name[MAX_LENGTH];
 	char fixture[6][MAX_LENGTH];
+	Players players[5];
 } TeamDetails;
 
 bool file_exists(const char* filename);
@@ -56,7 +59,7 @@ void getting_info(char data[MAX_LENGTH], char* item, int start, int end);
 int config_file_handling(int change);
 void add_team();
 void add_player();
-void print_col_char(char item[MAX_LENGTH], int characters);
+void print_col_char(char item[2*MAX_LENGTH], int characters);
 void print_col_int(int item, int characters);
 void team_info(char teamName[MAX_LENGTH]);
 void show_players();
@@ -71,13 +74,20 @@ void buy_player(Players player, Teams team);
 void buy_player_page(Teams team);
 void sell_player(Players player, Teams team, int index);
 void sell_player_page(Teams team);
-void coach_page(char teamName[MAX_LENGTH]);
+void coach_page(Teams team);
 int login();
 void forget_password();
 void login_page();
 void files_initialize();
 void submit_squad(Teams team);
 void start_league_page();
+void league_standing();
+int compare(TeamDetails team1, TeamDetails team2);
+void swap(TeamDetails* a, TeamDetails* b);
+void sort(TeamDetails* target);
+void league_standing(Teams team);
+void set_color(int color);
+void reset_color();
 
 int main()
 {
@@ -166,12 +176,23 @@ int config_file_handling(int change) {
 		number++;
 		fprintf(config2, "%d,", number);
 	}
+	else if(change == 31) {
+		fprintf(config2, "0,");
+	}
 	else {
 		fprintf(config2, "%s,", numbOfReadyTeams);
 	}
 
+	fprintf(config2, "%d,", leagueStatus);// updating league status
+
 	fclose(config2);
 	return number;
+}
+
+void warning(char* text) {
+	set_color(2);
+	printf(text);
+	reset_color();
 }
 
 void add_team() {
@@ -197,7 +218,7 @@ void add_team() {
 		fclose(fptr);
 
 		if (isUnique == 0) {
-			printf("\nTeam name has already been got!\n");
+			warning("\nThis team name is not available!\n");
 		}
 
 	} while (isUnique == 0);
@@ -233,21 +254,21 @@ void add_player() {
 		printf("Attacking power: ");
 		scanf("%d", &attackingPower);
 		if (attackingPower >= 0 && attackingPower <= 100) break;
-		else printf("Attacking power must be between 0 and 100!\n");
+		else warning("Attacking power must be between 0 and 100!\n");
 	} while (true);
 	do
 	{
 		printf("Defencing power: ");
 		scanf("%d", &defendingPower);
 		if (defendingPower >= 0 && defendingPower <= 100) break;
-		else printf("Defencing power must be between 0 and 100!\n");
+		else warning("Defencing power must be between 0 and 100!\n");
 	} while (true);
 	do
 	{
 		printf("Value: ");
 		scanf("%d", &value);
 		if (value >= 10 && value <= 20) break;
-		else printf("Value must be between 10 and 20!\n");
+		else warning("Value must be between 10 and 20!\n");
 	} while (true);
 	
 	int id = config_file_handling(1);
@@ -273,9 +294,20 @@ void add_player() {
 	admin_page();
 }
 
-void print_col_char(char item[MAX_LENGTH], int characters) {
+void set_color(int color) {
+	if (color == 1) printf("\033[0;36m");//Cyan color
+	else if (color == 2) printf("\033[0;31m");//Red color
+	else printf("\033[0;32m");//Green color
+}
+
+void reset_color() {
+	printf("\033[0m");
+}
+
+void print_col_char(char item[2*MAX_LENGTH], int characters,int color) {
 	int length = strlen(item);
 	int spaces = (characters - length) / 2;
+	set_color(color);
 	if (spaces <= 2) {
 		printf("%s", item);
 	}
@@ -292,10 +324,11 @@ void print_col_char(char item[MAX_LENGTH], int characters) {
 			printf(" ");
 		}
 	}
+	reset_color();
 	printf("|");
 }
 
-void print_col_int(int item, int characters) {
+void print_col_int(int item, int characters,int color) {
 	int digits = 0, item2 = item;
 	while (item2 > 0)
 	{
@@ -305,6 +338,7 @@ void print_col_int(int item, int characters) {
 	if (item == 0) digits = 1;
 	int length = digits;
 	int spaces = (characters - length) / 2;
+	set_color(color);
 	if (spaces <= 2) {
 		printf("%d", item);
 	}
@@ -321,6 +355,7 @@ void print_col_int(int item, int characters) {
 			printf(" ");
 		}
 	}
+	reset_color();
 	printf("|");
 }
 
@@ -329,7 +364,7 @@ void team_info(char teamName[MAX_LENGTH]) {
 	Players player;
 
 	FILE* playersFile = fopen("players.txt", "rb");
-	int numberOfPlayers = 0;
+	int numberOfPlayers = 0, color = 0;
 	printf("\n%s players\n", teamName);
 	printf("======================================================================================================\n");
 	printf("||               Player name               |   Value   |   Attacking power    |   Defencing power   ||\n");
@@ -341,19 +376,18 @@ void team_info(char teamName[MAX_LENGTH]) {
 		}
 
 		printf("||-----------------------------------------|-----------|----------------------|---------------------||\n||");
-		print_col_char(player.name, 41);
-		print_col_int(player.value, 11);
-		print_col_int(player.attackingPower, 22);
-		print_col_int(player.defencingPower, 21);
+		print_col_char(player.name, 41,color);
+		print_col_int(player.value, 11,color);
+		print_col_int(player.attackingPower, 22,color);
+		print_col_int(player.defencingPower, 21,color);
 		printf("|");
 		printf("\n");
 		numberOfPlayers++;
+		color = !color;
 	}
 	printf("======================================================================================================\n");
 	fclose(playersFile);
-	if (numberOfPlayers == 0) {
-		printf("This team has no players!!\n");
-	}
+	if (numberOfPlayers == 0) warning("This team has no players!!\n");
 	printf("Press enter to continue\n");
 	getchar();
 	getchar();
@@ -367,7 +401,7 @@ void show_players() {
 		player.name[i] = NULL;
 	}
 	FILE* playersFile = fopen("players.txt", "rb");
-	int numberOfPlayers = 0;
+	int numberOfPlayers = 0, color = 0;
 	fseek(playersFile, 0, SEEK_SET);
 	printf("\n");
 	printf("====================================================================================================================================================\n");
@@ -377,26 +411,23 @@ void show_players() {
 		int position = ftell(playersFile);
 		//41 34 22 21 11 10
 		printf("||-----------------------------------------|----------------------------------|----------------------|---------------------|-----------|----------||\n||");
-		print_col_char(player.name, 41);
-		print_col_char(player.teamName, 34);
-		print_col_int(player.attackingPower, 22);
-		print_col_int(player.defencingPower, 21);
-		print_col_int(player.value, 11);
-		print_col_int(player.id, 10);
+		print_col_char(player.name, 41,color);
+		print_col_char(player.teamName, 34,color);
+		print_col_int(player.attackingPower, 22,color);
+		print_col_int(player.defencingPower, 21,color);
+		print_col_int(player.value, 11,color);
+		print_col_int(player.id, 10,color);
 		printf("|");
 		printf("\n");
 		numberOfPlayers++;
-		
+		color = !color;
 
 	}
 	fclose(playersFile);
 	printf("====================================================================================================================================================\n");
-	if (numberOfPlayers == 0) {
-		printf("There is no player!!\n");
-	}
-	else {
-		printf("Press enter to continue\n");
-	}
+	
+	if (numberOfPlayers == 0) warning("There is no player!!\n");
+	else printf("Press enter to continue\n");
 	getchar();
 	getchar();
 	admin_page();
@@ -407,7 +438,7 @@ void show_teams() {
 	Teams team;
 	FILE* teamsFile = fopen("teams.txt", "rb");
 	char  teamChoice[MAX_LENGTH], teamsData[100][MAX_LENGTH];
-	int choice, index = 0;
+	int choice, index = 0, color = 0;
 
 	printf("\n");
 	printf("==================================================================================\n");
@@ -418,17 +449,18 @@ void show_teams() {
 		strcpy(teamsData[index], team.name);
 
 		printf("||---------------------------------------|--------------|-----------------------||\n||");
-		print_col_char(team.name, 39);
-		print_col_int(team.trophies, 14);
-		print_col_int(team.numberOfPlayers, 23);
+		print_col_char(team.name, 39,color);
+		print_col_int(team.trophies, 14,color);
+		print_col_int(team.numberOfPlayers, 23,color);
 		printf("|");
 		printf("\n");
 		index++;
+		color = !color;
 	}
 	printf("==================================================================================\n");
 	fclose(teamsFile);
 	if (index == 0) {
-		printf("There isn't any team!!\nPress enter to continue");
+		warning("There isn't any team!!\nPress enter to continue");
 		getchar();
 		getchar();
 	}
@@ -443,9 +475,8 @@ void show_teams() {
 					correct = 1;
 				}
 			}
-			if (correct == 0) {
-				printf("Team name is incorrect\n");
-			}
+			if (correct == 0) warning("Team name is incorrect\n");
+			
 		} while (correct == 0);
 		team_info(teamChoice);
 	}
@@ -462,6 +493,7 @@ void admin_page() {
 	printf("3)Show teams\n");
 	printf("4)Show players\n");
 	if (transferWindow)printf("5)Start League\n");
+	else printf("5)Star week %d-th games\n", leagueStatus);
 	printf("6)Back\n");
 	int flag = 0;
 	do
@@ -479,7 +511,7 @@ void admin_page() {
 			if (transferWindow) {
 				int status = number_of_objects(4);
 				if (status < 4) {
-					printf("There aren't enough ready teams!\n");
+					warning("There aren't enough ready teams!\n");
 					flag = 1;
 					continue;
 				}
@@ -509,20 +541,18 @@ void start_league(int selectedIds[4]) {
 		teamdetail.othersid[i] = -1;
 	}
 	Teams team;
-	FILE* teamsFile = fopen("teams.txt", "rb");
-	//FILE* leagueFile = fopen("league.txt", "wb");
+	FILE* teamsFile = fopen("teams.txt", "rb");	
 	int index = 0;
 	while (fread(&team,TEAMS_SIZE,1,teamsFile))
 	{
 		if (!is_in(selectedIds, team.id, 4))continue;
 		strcpy(teamdetail.name, team.name);
 		teamdetail.id = team.id;
-		//fwrite(&teamdetail, sizeof(teamdetail), 1, leagueFile);
 		all_teams[index] = teamdetail;
 		index++;
 	}
 	fclose(teamsFile);
-	//fclose(leagueFile);
+	
 	srand(time(NULL));
 	int id1, id2, id3, id4;
 	for (int i = 0; i < 3; i++) {
@@ -566,16 +596,24 @@ void start_league(int selectedIds[4]) {
 		strcpy(all_teams[2].fixture[i + 3], all_teams[2].fixture[i]);
 		strcpy(all_teams[3].fixture[i + 3], all_teams[3].fixture[i]);
 	}
-	all_teams;
 
+	FILE* leagueFile = fopen("league.txt", "wb");
+	for (int i = 0; i < 4; i++) {
+		fwrite(&all_teams[i], sizeof(TeamDetails), 1, leagueFile);
+	}
+	fclose(leagueFile);
+	leagueStatus = 1;
+	transferWindow = 0;
+	config_file_handling(4);
+	config_file_handling(31);
 }
 
 void start_league_page() {
 	system("cls");
 	Teams team;
 	FILE* teamsFile = fopen("teams.txt", "rb");
-	char  teamChoice[MAX_LENGTH], teamsData[100];
-	int choice, index = 0;
+	char  teamChoice[MAX_LENGTH];
+	int choice, index = 0, color = 0, teamsData[100];
 
 	printf("\n");
 	printf("=============================================================================================\n");
@@ -586,34 +624,34 @@ void start_league_page() {
 		teamsData[index] = team.id;
 
 		printf("||---------------------------------------|--------------|-----------------------|----------||\n||");
-		print_col_char(team.name, 39);
-		print_col_int(team.trophies, 14);
-		print_col_int(team.numberOfPlayers, 23);
-		print_col_int(team.id, 10);
+		print_col_char(team.name, 39,color);
+		print_col_int(team.trophies, 14,color);
+		print_col_int(team.numberOfPlayers, 23,color);
+		print_col_int(team.id, 10,color);
 		printf("|");
 		printf("\n");
 		index++;
+		color = !color;
 	}
 	printf("=============================================================================================\n");
 	fclose(teamsFile);
 
-	int flag = 0, selectedTeams[4], j = 0;
+	int selectedTeams[4], j = 0;
 	do
 	{
-		flag = 0;
-		printf("Enter %s id of the team you want to choose: ", j == 0 ? "" : "the next");
+		char text[10];
+		if (j == 0)strcpy(text, "first");
+		else if (j == 1)strcpy(text, "second");
+		else if (j == 2)strcpy(text, "third");
+		else strcpy(text, "fourth");
+
+		printf("Enter id of the %s team you want to choose: ", text);
 		scanf("%d", &choice);
-		for (int i = 0; i < index; i++) {
-			if (teamsData[i] == choice) {
-				flag = 1;
-				break;
-			}
-		}
-		if (flag == 0) {
-			printf("This id is not available!\n");
+		if (!is_in(teamsData,choice,index)) {
+			warning("This id is not available!\n");
 		}
 		else if (is_in(selectedTeams, choice, j))
-			printf("You have chosen this team before!\n");
+			warning("You have chosen this team before!\n");
 		else {
 			printf("Id %d selected!\n", choice);
 			selectedTeams[j] = choice;
@@ -626,8 +664,8 @@ void start_league_page() {
 
 int number_of_objects(int number1) {
 	FILE* config = fopen("config.txt", "r");
-	char data[10], teamNumber[10] = "";
-	fgets(data, 10, config);
+	char data[20], teamNumber[10] = "";
+	fgets(data, 20, config);
 	getting_info(data, teamNumber, number1 - 1, number1);
 	int number;
 	sscanf(teamNumber, "%d", &number);
@@ -717,7 +755,7 @@ void buy_player_page(Teams team) {
 	FILE* playersFile = fopen("players.txt", "rb");
 	Players player;
 	int numbofPlayers = number_of_objects(2);
-	int index = 0, * playersids = (int*)malloc(numbofPlayers * sizeof(int));
+	int index = 0, * playersids = (int*)malloc(numbofPlayers * sizeof(int)), color = 0;
 	printf("\n");
 	printf("=================================================================================================================\n");
 	printf("||               Player name               |   Attacking power    |   Defencing power   |   Value   |    id    ||\n");
@@ -729,15 +767,16 @@ void buy_player_page(Teams team) {
 			if (i != player.value) continue;
 
 			printf("||-----------------------------------------|----------------------|---------------------|-----------|----------||\n||");
-			print_col_char(player.name, 41);
-			print_col_int(player.attackingPower, 22);
-			print_col_int(player.defencingPower, 21);
-			print_col_int(player.value, 11);
-			print_col_int(player.id, 10);
+			print_col_char(player.name, 41,color);
+			print_col_int(player.attackingPower, 22,color);
+			print_col_int(player.defencingPower, 21,color);
+			print_col_int(player.value, 11,color);
+			print_col_int(player.id, 10,color);
 			printf("|");
 			printf("\n");
 			playersids[index] = player.id;
 			index++;
+			color = !color;
 		}
 	}
 	printf("=================================================================================================================\n");
@@ -753,7 +792,7 @@ void buy_player_page(Teams team) {
 		{
 			if (is_in(playersids, player.id, index) && choice == player.id) {
 				if (team.budget - player.value < 0) {
-					printf("Your budget is not enough! ");
+					warning("Your budget is not enough! ");
 					break;
 				}
 				flag = 1;
@@ -761,11 +800,11 @@ void buy_player_page(Teams team) {
 			}
 		}
 		if (flag == 0) {
-			printf("Player id is not available!\n");
+			warning("Player id is not available!\n");
 		}
 	} while (flag == 0);
 	if (choice != -1)buy_player(player, team);
-	coach_page(team.name);
+	coach_page(team);
 }
 
 void sell_player(Players player, Teams team, int index) {
@@ -783,17 +822,19 @@ void sell_player_page(Teams team) {
 	printf("\n");
 	printf("=================================================================================================================\n");
 	printf("||               Player name               |   Attacking power    |   Defencing power   |   Value   |    id    ||\n");
+	int color = 0;
 	for (int i = 20; i > 9; i--) {
 		for (int j = 0; j < team.numberOfPlayers; j++) {
 			if (team.players[j].value != i) continue;
 			printf("||-----------------------------------------|----------------------|---------------------|-----------|----------||\n||");
-			print_col_char(team.players[j].name, 41);
-			print_col_int(team.players[j].attackingPower, 22);
-			print_col_int(team.players[j].defencingPower, 21);
-			print_col_int(team.players[j].value, 11);
-			print_col_int(team.players[j].id, 10);
+			print_col_char(team.players[j].name, 41,color);
+			print_col_int(team.players[j].attackingPower, 22,color);
+			print_col_int(team.players[j].defencingPower, 21,color);
+			print_col_int(team.players[j].value, 11,color);
+			print_col_int(team.players[j].id, 10,color);
 			printf("|");
 			printf("\n");
+			color = !color;
 		}
 	}
 	printf("=================================================================================================================\n");
@@ -811,10 +852,10 @@ void sell_player_page(Teams team) {
 				break;
 			}
 		}
-		if (flag == 0) printf("This id is not available\n");
+		if (flag == 0) warning("This id is not available\n");
 	} while (flag == 0);
 	if (choice != -1)sell_player(team.players[index], team, index);
-	coach_page(team.name);
+	coach_page(team);
 }
 
 void submit_squad(Teams team) {
@@ -824,19 +865,241 @@ void submit_squad(Teams team) {
 	change_teamsfile(team);
 }
 
-void coach_page(char teamName[MAX_LENGTH]) {
-	system("cls");
-	int choice;
-	Teams team;
-	FILE* teamsFile = fopen("teams.txt", "rb");
+int compare(TeamDetails team1,TeamDetails team2) {
+	if (team1.points != team2.points) 
+		return team1.points > team2.points;
+	
+	if (team1.gd != team2.gd)
+		return team1.gd > team2.gd;
+	
+	if (team1.ga != team2.ga)
+		return team1.ga > team2.ga;
+	
+	return team1.gf >= team2.gf;
+}
 
-	while (fread(&team, sizeof(Teams), 1, teamsFile))
+void swap(TeamDetails* a, TeamDetails* b) {
+	TeamDetails temp = *a;
+	*a = *b;
+	*b = temp;
+}
+
+void sort(TeamDetails *target) {
+	int repeated = 0;
+	do
 	{
-		if (strcmp(team.name, teamName) == 0) {
-			break;
+		repeated = 0;
+		for (int i = 0; i < 3; i++) {
+			if (!compare(target[i],target[i+1])) {
+				swap(&target[i],&target[i+1]);
+				repeated++;
+			}
+		}
+	} while (repeated);
+}
+
+void league_standing(Teams team) {
+	TeamDetails all_teams[4];
+	int index = 0, color = 0;
+	FILE* league = fopen("league.txt", "r");
+	while (fread(&all_teams[index],sizeof(TeamDetails),1,league))
+	{
+		index++;
+	}
+	fclose(league);
+	sort(all_teams);
+	//Team Name, Played, Won, Drawn, Lost, GF, GA, GD,Points
+	system("cls");
+	printf("\n");
+	printf("============================================================================================================================================\n");
+	printf("||               Team name               |   Played    |   Won   |   Drawn   |    Lost    |    GA    |    GF    |    GD    |    Points    ||\n");
+	for (int i = 0; i < 4; i++) {
+		printf("||---------------------------------------|-------------|---------|-----------|------------|----------|----------|----------|--------------||\n||");
+		print_col_char(all_teams[i].name, 39, color);
+		print_col_int(all_teams[i].numberOfGames, 13, color);
+		print_col_int(all_teams[i].won, 9, color);
+		print_col_int(all_teams[i].drawn, 11, color);
+		print_col_int(all_teams[i].lost, 12, color);
+		print_col_int(all_teams[i].ga, 10, color);
+		print_col_int(all_teams[i].gf, 10, color);
+		print_col_int(all_teams[i].gd, 10, color);
+		print_col_int(all_teams[i].points, 14, color);
+		printf("|");
+		printf("\n");
+		color = !color;
+	}
+	printf("============================================================================================================================================\n");
+	printf("Press enter to continue!\n");
+	getchar();
+	getchar();
+	coach_page(team);
+}
+
+void select_squad(Teams team) {
+	system("cls");
+	printf("\n");
+	printf("=================================================================================================================\n");
+	printf("||               Player name               |   Attacking power    |   Defencing power   |   Value   |    id    ||\n");
+	int color = 0, all_ids[8], index = 0;
+	for (int i = 20; i > 9; i--) {
+		for (int j = 0; j < team.numberOfPlayers; j++) {
+			if (team.players[j].value != i) continue;
+			printf("||-----------------------------------------|----------------------|---------------------|-----------|----------||\n||");
+			print_col_char(team.players[j].name, 41, color);
+			print_col_int(team.players[j].attackingPower, 22, color);
+			print_col_int(team.players[j].defencingPower, 21, color);
+			print_col_int(team.players[j].value, 11, color);
+			print_col_int(team.players[j].id, 10, color);
+			printf("|");
+			printf("\n");
+			color = !color;
+			all_ids[index] = team.players[j].id;
+			index++;
 		}
 	}
-	fclose(teamsFile);
+	printf("=================================================================================================================\n");
+	
+	int choice, j = 0, selectedIds[5];
+	do
+	{
+		char text[10];
+		if (j == 0)strcpy(text, "first");
+		else if (j == 1)strcpy(text, "second");
+		else if (j == 2)strcpy(text, "third");
+		else if (j == 3)strcpy(text, "fourth");
+		else strcpy(text, "fifth");
+
+		printf("Enter id of the %s player you want to choose: ", text);
+		scanf("%d", &choice);
+		if (!is_in(all_ids, choice, 8))warning("This id is not available!\n");
+		else if (is_in(selectedIds, choice, j)) warning("You have chosen this team before!\n");
+		else {
+			printf("Id %d selected!\n", choice);
+			selectedIds[j] = choice;
+			j++;
+		}
+		if (j == 5)break;
+	} while (true);
+
+	TeamDetails teamDetail;
+	FILE* league = fopen("league.txt", "rb");
+	FILE* temp = fopen("temp.txt", "wb");
+	index = 0;
+	while (fread(&teamDetail,sizeof(TeamDetails),1,league))
+	{
+		if (teamDetail.id == team.id) {
+			for (int i = 0; i < 8; i++) {
+				if (is_in(selectedIds, team.players[i].id, 5)) {
+					teamDetail.players[index] = team.players[i];
+					index++;
+				}
+			}
+		}
+		fwrite(&teamDetail, sizeof(TeamDetails), 1, temp);
+	}
+	fclose(league);
+	fclose(temp);
+
+	FILE* league2 = fopen("league.txt", "wb");
+	FILE* temp2 = fopen("temp.txt", "rb");
+	for (int i = 0; i < 4; i++) {
+		fread(&teamDetail, sizeof(TeamDetails), 1, temp2);
+		fwrite(&teamDetail, sizeof(TeamDetails), 1, league2);
+	}
+	fclose(league2);
+	fclose(temp2);
+	config_file_handling(3);
+	coach_page(team);
+}
+
+void team_fixture(Teams team) {
+	TeamDetails teamDetail;
+	FILE* league = fopen("league.txt", "rb");
+	while (fread(&teamDetail,sizeof(TeamDetails),1,league))
+	{
+		if (teamDetail.id == team.id)break;
+	}
+	fclose(league);
+	system("cls");
+	printf("\n");
+	printf("||===================================================================================||\n");
+	printf("||                                       Game                                        ||\n");
+	for (int i = 0; i < teamDetail.numberOfGames; i++) {
+		printf("||------------------------------------------------------------------------------------------||\n||");
+		char temp[MAX_LENGTH];
+		strcpy(temp, teamDetail.name);
+		strcat(temp, " VS ");
+		strcat(temp, teamDetail.fixture[i]);
+		print_col_char(temp, 45, 0);
+		printf("|");
+		printf("\n");
+		printf("||");
+		print_col_char(teamDetail.results[i], 45, 0);
+		printf("|");
+		printf("\n");
+	}
+
+	for (int i = 0; i < 6 - teamDetail.numberOfGames; i++) {
+		printf("||------------------------------------------------------------------------------------------||\n||");
+		char temp[MAX_LENGTH];
+		strcpy(temp, teamDetail.name);
+		strcat(temp, " VS ");
+		strcat(temp, teamDetail.fixture[i + teamDetail.numberOfGames]);
+		print_col_char(temp, 45, 1);
+		printf("|");
+		printf("\n");
+	}
+	printf("||===================================================================================||\n");
+	printf("Press enter to continue!\n");
+	getchar();
+	getchar();
+	coach_page(team);
+}
+
+void upcoming_opponent(Teams team) {
+	TeamDetails teamDetail;
+	FILE* league = fopen("league.txt", "rb");
+	while (fread(&teamDetail, sizeof(TeamDetails), 1, league))
+	{
+		if (teamDetail.id == team.id)break;
+	}
+
+	char teamName[MAX_LENGTH];
+	strcpy(teamName, teamDetail.fixture[teamDetail.numberOfGames]);
+	fseek(league, 0, SEEK_SET);
+	while (fread(&teamDetail,sizeof(TeamDetails),1,league))
+	{
+		if (strcmp(teamName, teamDetail.name) == 0)break;
+	}
+	fclose(league);
+
+	system("cls");
+	printf("\n");
+	printf("=================================================================================================================\n");
+	printf("||               Player name               |   Attacking power    |   Defencing power   ||\n");
+	int color = 0, sum = 0;;
+	for (int i = 0; i < 5; i++) {
+		printf("||-----------------------------------------|----------------------|---------------------||\n||");
+		print_col_char(teamDetail.players[i].name, 41, color);
+		print_col_int(teamDetail.players[i].attackingPower, 22, color);
+		print_col_int(teamDetail.players[i].defencingPower, 21, color);
+		printf("|");
+		printf("\n");
+		color = !color;
+		sum += teamDetail.players[i].attackingPower + teamDetail.players[i].defencingPower;
+	}
+	printf("=================================================================================================================\n");
+	printf("Total Power: %d\n", sum);
+	printf("Press enter to continue!\n");
+	getchar();
+	getchar();
+	coach_page(team);
+}
+
+void coach_page(Teams team) {
+	system("cls");
+	int choice;
+
 	printf("Team budget: %d    Number of players: %d\n", team.budget, team.numberOfPlayers);
 	printf("1)Buy a player\n");
 	printf("2)Sell a player\n");
@@ -846,8 +1109,7 @@ void coach_page(char teamName[MAX_LENGTH]) {
 	printf("5)Fixtures\n");
 	printf("6)Upcoming Opponent\n");
 	printf("7)Change Password\n");
-	printf("8)Upcoming Opponent\n");
-	printf("9)Back\n");
+	printf("8)Exit\n");
 	int flag = 1;
 	do
 	{
@@ -857,43 +1119,77 @@ void coach_page(char teamName[MAX_LENGTH]) {
 		{
 		case 1:
 			if (!transferWindow) {
-				printf("Transfer window is closed!\n");
+				warning("Transfer window is closed!\n");
 			}
 			else if (team.ready) {
-				printf("You have submitted your squad!\n");
+				warning("You have submitted your squad!\n");
 			}
 			else if (team.numberOfPlayers == 8) {
-				printf("You cannot buy more players!\n");
+				warning("You cannot buy more players!\n");
 			}
 			else {
 				buy_player_page(team);
+				flag = 0;
 			}break;
 		case 2:
 			if (!transferWindow) {
-				printf("Transfer window is closed!\n");
+				warning("Transfer window is closed!\n");
 			}
 			else if (team.ready) {
-				printf("You have submitted your squad!\n");
+				warning("You have submitted your squad!\n");
 			}
 			else if (team.numberOfPlayers == 0) {
-				printf("You don't have any players to sell!\n");
+				warning("You don't have any players to sell!\n");
 			}
 			else {
 				sell_player_page(team);
+				flag = 0;
 			}break;
 		case 3:
 			if (transferWindow) {
-				if (team.numberOfPlayers != 8) printf("You don't have enough players to submit your squad!\n");
-				else if(team.ready) printf("You have submitted your squad!\n");
+				if (team.numberOfPlayers != 8) warning("You don't have enough players to submit your squad!\n");
+				else if(team.ready) warning("You have submitted your squad!\n");
 				else { 
 					submit_squad(team);
 					team.ready = 1;
+					flag = 0;
 				}
 			}
 			else {
-				//select_squad();
+				if (!team.ready)warning("You are not in the league!\n");
+				else {
+					select_squad(team);
+					flag = 0;
+				}
 			}
 			break;
+		case 4:
+			if (!leagueStatus) warning("League has not started yet!\n");
+			else if (!team.ready) warning("You are not in the league!\n");
+			else {
+				league_standing(team);
+				flag = 0;
+			}
+			break;
+		case 5:
+			if (!leagueStatus) warning("League has not started yet!\n");
+			else if (!team.ready) warning("You are not in the league!\n");
+			else {
+				team_fixture(team);
+				flag = 0;
+			}
+			break;
+		case 6:
+			if (!leagueStatus) warning("League has not started yet!\n");
+			else if (!team.ready) warning("You are not in the league!\n");
+			else {
+				upcoming_opponent(team);
+				flag = 0;
+			}
+			break;
+		case 7:
+			forget_password();
+			flag = 0;
 		default:
 			login_page();
 			flag = 0;
@@ -922,13 +1218,13 @@ int login() {
 			FILE* teamsFile = fopen("teams.txt", "rb");
 			while (fread(&team, sizeof(Teams), 1, teamsFile)) {
 				if (strcmp(team.name, teamname) == 0 && strcmp(team.password, password) == 0) {
-					coach_page(teamname);
+					coach_page(team);
 					break;
 				}
 			}
 			fclose(teamsFile);
 		}
-		printf("Team Name or password is incorrect!!\n");
+		warning("Team Name or password is incorrect!!\n");
 	} while (1);
 }
 
@@ -957,11 +1253,11 @@ void forget_password() {
 			}
 		}
 		if (flag == 0) {
-			printf("Team name or email is incorrect!!\n");
+			warning("Team name or email is incorrect!!\n");
 			fclose(teamsFile);
 		}
 	} while (flag == 0);
-
+	login_page();
 }
 
 void login_page() {
@@ -970,14 +1266,18 @@ void login_page() {
 	printf("1)Login\n2)Forget password\n");
 	do
 	{
+		
 		scanf("%d", &choice);
 		if (choice == 1) {
 			login();
+			break;
 		}
 		else if (choice == 2) {
 			forget_password();
+			break;
 		}
-	} while (choice != 1 && choice != 2);
+		if (choice != 1 && choice != 2)warning("Please enter 1 or 2\n");
+	} while (true);
 
 }
 
@@ -994,11 +1294,12 @@ void files_initialize() {
 
 	if (!file_exists("config.txt")) {
 		FILE* config = fopen("config.txt", "w");
-		fprintf(config, "0,0,1,0,");//nomber of teams, number of players, transferWindow, numberOfReadyTeams
+		fprintf(config, "0,0,1,0,0,");//nomber of teams, number of players, transferWindow, numberOfReadyTeams, league status
 		fclose(config);
 	}
 	else {
 		transferWindow = number_of_objects(3);
+		leagueStatus = number_of_objects(5);
 	}
 }
 
