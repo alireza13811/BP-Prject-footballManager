@@ -3,7 +3,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-
 #define bool  _Bool
 #define false 0
 #define true  1
@@ -47,7 +46,12 @@ typedef struct {
 	int drawn;
 	int lost;
 	int points;
+	int attackingPower;
+	int defencingPower;
+	int ready;
+	int chosen;
 	int othersid[3];
+	int playersids[5];
 	char results[6][30];
 	char name[MAX_LENGTH];
 	char fixture[6][MAX_LENGTH];
@@ -85,9 +89,12 @@ void league_standing();
 int compare(TeamDetails team1, TeamDetails team2);
 void swap(TeamDetails* a, TeamDetails* b);
 void sort(TeamDetails* target);
-void league_standing(Teams team);
 void set_color(int color);
 void reset_color();
+void coach_page(Teams team);
+void league_standing(Teams team);
+void team_fixture(Teams team);
+void select_squad(Teams team);
 
 int main()
 {
@@ -492,8 +499,14 @@ void admin_page() {
 	printf("2)Add player\n");
 	printf("3)Show teams\n");
 	printf("4)Show players\n");
-	if (transferWindow)printf("5)Start League\n");
-	else printf("5)Star week %d-th games\n", leagueStatus);
+	if (transferWindow) {
+		if (leagueStatus)printf("5)Open transfer window\n");
+		else printf("5)Start League\n");
+	}
+	else {
+		if (leagueStatus == 3)printf("5)Close transfer window\n");
+		else printf("5)Start week %d-th games\n", leagueStatus);
+	}
 	printf("6)Back\n");
 	int flag = 0;
 	do
@@ -508,7 +521,7 @@ void admin_page() {
 		case 3:show_teams(); break;
 		case 4:show_players(); break;
 		case 5:
-			if (transferWindow) {
+			if (!leagueStatus) {
 				int status = number_of_objects(4);
 				if (status < 4) {
 					warning("There aren't enough ready teams!\n");
@@ -516,6 +529,15 @@ void admin_page() {
 					continue;
 				}
 				start_league_page();
+			}
+			else {
+				int status = number_of_objects(4);
+				if (status < 4) {
+					warning("There aren't enough ready teams!\n");
+					flag = 1;
+					continue;
+				}
+				start_week();
 			}
 				
 		default:
@@ -597,6 +619,15 @@ void start_league(int selectedIds[4]) {
 		strcpy(all_teams[3].fixture[i + 3], all_teams[3].fixture[i]);
 	}
 
+	all_teams[0].ready = 0;
+	all_teams[1].ready = 0;
+	all_teams[2].ready = 0;
+	all_teams[3].ready = 0;
+	all_teams[0].chosen = 0;
+	all_teams[1].chosen = 0;
+	all_teams[2].chosen = 0;
+	all_teams[3].chosen = 0;
+
 	FILE* leagueFile = fopen("league.txt", "wb");
 	for (int i = 0; i < 4; i++) {
 		fwrite(&all_teams[i], sizeof(TeamDetails), 1, leagueFile);
@@ -606,6 +637,44 @@ void start_league(int selectedIds[4]) {
 	transferWindow = 0;
 	config_file_handling(4);
 	config_file_handling(31);
+}
+
+void start_week() {
+	int index = 0;
+	TeamDetails all_teams[4];
+	FILE* league = fopen("league.txt", "r");
+	while (fread(&all_teams[index], sizeof(TeamDetails), 1, league))
+	{
+		index++;
+	}
+	fclose(league);
+
+	TeamDetails opponent,team;
+	int game = leagueStatus - 1, Agoals, Bgoals, oldids[4], newids[4];
+	char opponentName[MAX_LENGTH];
+	for (int i = 0; i < 4; i++) {
+		if (all_teams[i].chosen)continue;
+		team = all_teams[i];
+		team.chosen = 1;
+		strcpy(opponentName, all_teams[i].fixture[game]);
+		for (int j = 0; j < 4; j++) {
+			if (strcmp(all_teams[j].name, opponentName) == 0) {
+				opponent = all_teams[j];
+				break;
+			}
+		}
+
+		opponent.chosen = 1;
+		Agoals = (team.attackingPower - opponent.defencingPower)/100;
+		if (Agoals < 0)Agoals = -Agoals;
+		Bgoals = (opponent.attackingPower - team.defencingPower)/100;
+		if (Bgoals < 0)Bgoals = -Bgoals;
+
+		if (game != 0) {
+
+		}
+	}
+	
 }
 
 void start_league_page() {
@@ -985,15 +1054,23 @@ void select_squad(Teams team) {
 	FILE* league = fopen("league.txt", "rb");
 	FILE* temp = fopen("temp.txt", "wb");
 	index = 0;
+	int attackingPower = 0, defencingPower = 0;
 	while (fread(&teamDetail,sizeof(TeamDetails),1,league))
 	{
+		attackingPower = 0, defencingPower = 0;
 		if (teamDetail.id == team.id) {
 			for (int i = 0; i < 8; i++) {
 				if (is_in(selectedIds, team.players[i].id, 5)) {
 					teamDetail.players[index] = team.players[i];
+					teamDetail.playersids[index] = team.players[i].id;
+					attackingPower += team.players[i].attackingPower;
+					defencingPower += team.players[i].defencingPower;
 					index++;
 				}
 			}
+			teamDetail.ready = 1;
+			teamDetail.attackingPower = attackingPower;
+			teamDetail.defencingPower = defencingPower;
 		}
 		fwrite(&teamDetail, sizeof(TeamDetails), 1, temp);
 	}
@@ -1022,41 +1099,41 @@ void team_fixture(Teams team) {
 	fclose(league);
 	system("cls");
 	printf("\n");
-	printf("||===================================================================================||\n");
-	printf("||                                       Game                                        ||\n");
+	printf("=========================================================================================\n");
+	printf("||                                        Game                                         ||\n");
 	for (int i = 0; i < teamDetail.numberOfGames; i++) {
-		printf("||------------------------------------------------------------------------------------------||\n||");
+		printf("||-------------------------------------------------------------------------------------||\n||");
 		char temp[MAX_LENGTH];
 		strcpy(temp, teamDetail.name);
 		strcat(temp, " VS ");
 		strcat(temp, teamDetail.fixture[i]);
-		print_col_char(temp, 45, 0);
+		print_col_char(temp, 85, 0);
 		printf("|");
 		printf("\n");
 		printf("||");
-		print_col_char(teamDetail.results[i], 45, 0);
+		print_col_char(teamDetail.results[i], 85, 0);
 		printf("|");
 		printf("\n");
 	}
 
 	for (int i = 0; i < 6 - teamDetail.numberOfGames; i++) {
-		printf("||------------------------------------------------------------------------------------------||\n||");
+		printf("||-------------------------------------------------------------------------------------||\n||");
 		char temp[MAX_LENGTH];
 		strcpy(temp, teamDetail.name);
 		strcat(temp, " VS ");
 		strcat(temp, teamDetail.fixture[i + teamDetail.numberOfGames]);
-		print_col_char(temp, 45, 1);
+		print_col_char(temp, 85, 1);
 		printf("|");
 		printf("\n");
 	}
-	printf("||===================================================================================||\n");
+	printf("=========================================================================================\n");
 	printf("Press enter to continue!\n");
 	getchar();
 	getchar();
 	coach_page(team);
 }
 
-void upcoming_opponent(Teams team) {
+int upcoming_opponent(Teams team) {
 	TeamDetails teamDetail;
 	FILE* league = fopen("league.txt", "rb");
 	while (fread(&teamDetail, sizeof(TeamDetails), 1, league))
@@ -1064,6 +1141,7 @@ void upcoming_opponent(Teams team) {
 		if (teamDetail.id == team.id)break;
 	}
 
+	
 	char teamName[MAX_LENGTH];
 	strcpy(teamName, teamDetail.fixture[teamDetail.numberOfGames]);
 	fseek(league, 0, SEEK_SET);
@@ -1073,9 +1151,15 @@ void upcoming_opponent(Teams team) {
 	}
 	fclose(league);
 
+	if (teamDetail.ready == 0) {
+		warning("Upcoming opponent is not ready yet!\n");
+		return 0;
+	}
 	system("cls");
 	printf("\n");
-	printf("=================================================================================================================\n");
+	printf("Upcoming opponent: %s", teamDetail.name);
+	printf("\n");
+	printf("==========================================================================================\n");
 	printf("||               Player name               |   Attacking power    |   Defencing power   ||\n");
 	int color = 0, sum = 0;;
 	for (int i = 0; i < 5; i++) {
@@ -1088,12 +1172,13 @@ void upcoming_opponent(Teams team) {
 		color = !color;
 		sum += teamDetail.players[i].attackingPower + teamDetail.players[i].defencingPower;
 	}
-	printf("=================================================================================================================\n");
-	printf("Total Power: %d\n", sum);
+	printf("==========================================================================================\n");
+	printf("Total Power: %d\n\n", sum);
 	printf("Press enter to continue!\n");
 	getchar();
 	getchar();
 	coach_page(team);
+	return 1;
 }
 
 void coach_page(Teams team) {
@@ -1113,6 +1198,7 @@ void coach_page(Teams team) {
 	int flag = 1;
 	do
 	{
+		flag = 1;
 		printf("\nEnter your choice: ");
 		scanf("%d", &choice);
 		switch (choice)
@@ -1183,8 +1269,8 @@ void coach_page(Teams team) {
 			if (!leagueStatus) warning("League has not started yet!\n");
 			else if (!team.ready) warning("You are not in the league!\n");
 			else {
-				upcoming_opponent(team);
-				flag = 0;
+				int stat = upcoming_opponent(team);
+				flag = !stat;
 			}
 			break;
 		case 7:
