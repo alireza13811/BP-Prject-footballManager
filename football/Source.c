@@ -14,6 +14,7 @@
 
 int transferWindow;
 int leagueStatus;
+int halfStatus;
 
 typedef struct {
 	int id;
@@ -50,8 +51,9 @@ typedef struct {
 	int defencingPower;
 	int ready;
 	int chosen;
-	int othersid[3];
+	int lastPlayersIds[5];
 	int playersids[5];
+	int othersid[3];
 	char results[6][30];
 	char name[MAX_LENGTH];
 	char fixture[6][MAX_LENGTH];
@@ -92,14 +94,19 @@ void sort(TeamDetails* target);
 void set_color(int color);
 void reset_color();
 void coach_page(Teams team);
-void league_standing(Teams team);
+void league_standing();
 void team_fixture(Teams team);
 void select_squad(Teams team);
+void start_league(int selectedIds[4]);
+void start_week();
+void open_transfer();
 
 int main()
 {
 	files_initialize();
 	login_page();
+	//system("color 17");
+	//printf("sdf");
 }
 
 bool file_exists(const char* filename) {
@@ -191,6 +198,8 @@ int config_file_handling(int change) {
 	}
 
 	fprintf(config2, "%d,", leagueStatus);// updating league status
+
+	fprintf(config2, "%d,", halfStatus);// updating half status
 
 	fclose(config2);
 	return number;
@@ -337,12 +346,13 @@ void print_col_char(char item[2*MAX_LENGTH], int characters,int color) {
 
 void print_col_int(int item, int characters,int color) {
 	int digits = 0, item2 = item;
-	while (item2 > 0)
+	while (item2 != 0)
 	{
 		item2 /= 10;
 		digits++;
 	}
 	if (item == 0) digits = 1;
+	else if (item < 0)digits++;
 	int length = digits;
 	int spaces = (characters - length) / 2;
 	set_color(color);
@@ -490,6 +500,53 @@ void show_teams() {
 	admin_page();
 }
 
+void open_transfer() {
+	transferWindow = 1;
+	config_file_handling(4);
+	Teams team;
+	Players player;
+	FILE* teamsFile = fopen("teams.txt", "rb");
+	FILE* playersFile = fopen("players.txt", "rb");
+	FILE* temp = fopen("temp.txt", "wb");
+	int flag = 0;
+	while (fread(&team,TEAMS_SIZE,1,teamsFile))
+	{
+		for (int i = 0; i < team.numberOfPlayers; i++) {
+			fseek(playersFile, 0, SEEK_SET);
+			while (fread(&player, PLAYERS_SIZE, 1, playersFile))
+			{
+				if (player.id == team.players[i].id) {
+					team.players[i].attackingPower = player.attackingPower;
+					team.players[i].defencingPower = player.defencingPower;
+					break;
+				}
+			}
+		}
+		fwrite(&team, TEAMS_SIZE, 1, temp);
+	}
+	fclose(temp);
+	fclose(teamsFile);
+	fclose(playersFile);
+
+	FILE* teamsFile2 = fopen("teams.txt", "wb");
+	FILE* temp2 = fopen("temp.txt", "rb");
+	while (fread(& team, TEAMS_SIZE, 1, temp2))
+	{
+		fwrite(&team, TEAMS_SIZE, 1, teamsFile2);
+	}
+	fclose(temp2);
+	fclose(teamsFile2);
+}
+
+void end_season() {
+	league_standing();
+	transferWindow = 1;
+	leagueStatus = 0;
+	halfStatus = 1;
+	config_file_handling(4);
+	config_file_handling(31);
+}
+
 void admin_page() {
 
 	int choice;
@@ -500,11 +557,14 @@ void admin_page() {
 	printf("3)Show teams\n");
 	printf("4)Show players\n");
 	if (transferWindow) {
-		if (leagueStatus)printf("5)Open transfer window\n");
+		if (leagueStatus)printf("5)Close transfer window\n");
 		else printf("5)Start League\n");
 	}
+	else if (leagueStatus == 7) {
+		printf("5)End Season and Announce The Champion\n");
+	}
 	else {
-		if (leagueStatus == 3)printf("5)Close transfer window\n");
+		if (leagueStatus == 4 && halfStatus == 1)printf("5)Open transfer window\n");
 		else printf("5)Start week %d-th games\n", leagueStatus);
 	}
 	printf("6)Back\n");
@@ -521,23 +581,38 @@ void admin_page() {
 		case 3:show_teams(); break;
 		case 4:show_players(); break;
 		case 5:
-			if (!leagueStatus) {
-				int status = number_of_objects(4);
-				if (status < 4) {
-					warning("There aren't enough ready teams!\n");
-					flag = 1;
-					continue;
+			if (transferWindow) {
+				if (leagueStatus) {
+					transferWindow = 0;
+					halfStatus = 2;
+					config_file_handling(4);
 				}
-				start_league_page();
+				else {
+					int status = number_of_objects(4);
+					if (status < 4) {
+						warning("There aren't enough ready teams!\n");
+						flag = 1;
+						continue;
+					}
+					start_league_page();
+				}
+			}
+			else if (leagueStatus == 7) {
+				end_season();
 			}
 			else {
-				int status = number_of_objects(4);
-				if (status < 4) {
-					warning("There aren't enough ready teams!\n");
-					flag = 1;
-					continue;
+				if (leagueStatus == 4 && halfStatus == 1) {
+					open_transfer();
 				}
-				start_week();
+				else {
+					int status = number_of_objects(4);
+					if (status < 4) {
+						warning("There aren't enough ready teams!\n");
+						flag = 1;
+						continue;
+					}
+					start_week();
+				}
 			}
 				
 		default:
@@ -619,14 +694,14 @@ void start_league(int selectedIds[4]) {
 		strcpy(all_teams[3].fixture[i + 3], all_teams[3].fixture[i]);
 	}
 
-	all_teams[0].ready = 0;
-	all_teams[1].ready = 0;
-	all_teams[2].ready = 0;
-	all_teams[3].ready = 0;
-	all_teams[0].chosen = 0;
-	all_teams[1].chosen = 0;
-	all_teams[2].chosen = 0;
-	all_teams[3].chosen = 0;
+	for (int i = 0; i < 4; i++) {
+		all_teams[i].ready = 0;
+		all_teams[i].chosen = 0;
+		for (int j = 0; j < 5; j++) {
+			all_teams[i].playersids[j] = -1;
+			all_teams[i].lastPlayersIds[j] = -1;
+		}
+	}
 
 	FILE* leagueFile = fopen("league.txt", "wb");
 	for (int i = 0; i < 4; i++) {
@@ -641,10 +716,11 @@ void start_league(int selectedIds[4]) {
 
 void start_week() {
 	int index = 0;
-	TeamDetails all_teams[4];
-	FILE* league = fopen("league.txt", "r");
-	while (fread(&all_teams[index], sizeof(TeamDetails), 1, league))
+	TeamDetails* all_teams = malloc(4 * sizeof(TeamDetails)),all_team;
+	FILE* league = fopen("league.txt", "rb");
+	while (fread(&all_team, sizeof(TeamDetails), 1, league))
 	{
+		all_teams[index] = all_team;
 		index++;
 	}
 	fclose(league);
@@ -655,26 +731,155 @@ void start_week() {
 	for (int i = 0; i < 4; i++) {
 		if (all_teams[i].chosen)continue;
 		team = all_teams[i];
+		all_teams[i].chosen = 1;
 		team.chosen = 1;
 		strcpy(opponentName, all_teams[i].fixture[game]);
 		for (int j = 0; j < 4; j++) {
 			if (strcmp(all_teams[j].name, opponentName) == 0) {
 				opponent = all_teams[j];
+				all_teams[j].chosen = 1;
 				break;
 			}
 		}
-
 		opponent.chosen = 1;
-		Agoals = (team.attackingPower - opponent.defencingPower)/100;
-		if (Agoals < 0)Agoals = -Agoals;
-		Bgoals = (opponent.attackingPower - team.defencingPower)/100;
-		if (Bgoals < 0)Bgoals = -Bgoals;
 
-		if (game != 0) {
+		Agoals = (team.attackingPower - opponent.defencingPower)/100;
+		if (Agoals < 0)Agoals = 0;
+		Bgoals = (opponent.attackingPower - team.defencingPower)/100;
+		if (Bgoals < 0)Bgoals = 0;
+
+		Teams mainTeam;
+		Players player;
+		FILE* teamsFile = fopen("teams.txt", "rb");
+		FILE* playersFile = fopen("players.txt", "rb");
+		while (fread(&mainTeam,TEAMS_SIZE,1,teamsFile))
+		{
+			if (mainTeam.id == team.id) {
+				if (Agoals > Bgoals)mainTeam.budget += 5;
+				else if (Agoals == Bgoals)mainTeam.budget += 3;
+				else mainTeam.budget += 1;
+				for (int j = 0; j < 8; j++) {
+					if (is_in(team.playersids, mainTeam.players[j].id, 5)) {
+						mainTeam.players[j].attackingPower -= 5;
+						if (mainTeam.players[j].attackingPower < 0)mainTeam.players[j].attackingPower = 0;
+						mainTeam.players[j].defencingPower -= 5;
+						if (mainTeam.players[j].defencingPower < 0)mainTeam.players[j].defencingPower = 0;
+					}
+					else if (is_in(team.lastPlayersIds, mainTeam.players[j].id, 5)) {
+						fseek(playersFile, 0, SEEK_SET);
+						while (fread(&player,PLAYERS_SIZE,1,playersFile))
+						{
+							if (player.id == mainTeam.players[j].id) {
+								mainTeam.players[j].attackingPower = player.attackingPower;
+								mainTeam.players[j].defencingPower = player.defencingPower;
+								break;
+							}
+						}
+					}
+				}
+				mainTeam.ready = 0;
+				change_teamsfile(mainTeam);
+			}
+			else if (mainTeam.id == opponent.id) {
+				if (Agoals < Bgoals)mainTeam.budget += 5;
+				else if (Agoals == Bgoals)mainTeam.budget += 3;
+				else mainTeam.budget += 1;
+				for (int j = 0; j < 8; j++) {
+					if (is_in(opponent.playersids, mainTeam.players[j].id, 5)) {
+						mainTeam.players[j].attackingPower -= 5;
+						if (mainTeam.players[j].attackingPower < 0)mainTeam.players[j].attackingPower = 0;
+						mainTeam.players[j].defencingPower -= 5;
+						if (mainTeam.players[j].defencingPower < 0)mainTeam.players[j].defencingPower = 0;
+					}
+					else if (is_in(opponent.lastPlayersIds, mainTeam.players[j].id, 5)) {
+						fseek(playersFile, 0, SEEK_SET);
+						while (fread(&player, PLAYERS_SIZE, 1, playersFile))
+						{
+							if (player.id == mainTeam.players[j].id) {
+								mainTeam.players[j].attackingPower = player.attackingPower;
+								mainTeam.players[j].defencingPower = player.defencingPower;
+								break;
+							}
+						}
+					}
+				}
+				mainTeam.ready = 0;
+				change_teamsfile(mainTeam);
+			}
 
 		}
+		fclose(teamsFile);
+		fclose(playersFile);
+
+		team.numberOfGames++;
+		team.ga += Agoals;
+		team.gf -= Bgoals;
+		team.gd += (Agoals - Bgoals);
+		char temp3[30];
+		sprintf(temp3, "%d---%d", Agoals, Bgoals);
+		strcpy(team.results[game],temp3);
+		
+		opponent.numberOfGames++;
+		opponent.ga += Bgoals;
+		opponent.gf -= Agoals;
+		opponent.gd += (Bgoals - Agoals);
+		char temp4[30];
+		sprintf(temp4, "%d---%d", Bgoals, Agoals);
+		strcpy(opponent.results[game], temp4);
+
+		if (Agoals > Bgoals) {
+			team.won++;
+			team.points += 3;
+			opponent.lost++;
+		}
+		else if (Agoals == Bgoals) {
+			team.drawn++;
+			team.points++;
+			opponent.drawn++;
+			opponent.points++;
+		}
+		else {
+			team.lost++;
+			opponent.won++;
+			opponent.points += 3;
+		}
+		
+		FILE* league1 = fopen("league.txt", "rb");
+		FILE* temp = fopen("temp.txt", "wb");
+		TeamDetails fileTeam;
+		while (fread(&fileTeam,sizeof(TeamDetails),1,league1))
+		{
+			fileTeam.ready = 0;
+			fileTeam.chosen = 0;
+			if (fileTeam.id == team.id) {
+				fwrite(&team, sizeof(TeamDetails), 1, temp);
+			}
+			else if (fileTeam.id == opponent.id) {
+				fwrite(&opponent, sizeof(TeamDetails), 1, temp);
+			}
+			else {
+				fwrite(&fileTeam, sizeof(TeamDetails), 1, temp);
+			}
+			
+		}
+		fclose(league1);
+		fclose(temp);
+
+		FILE* league2 = fopen("league.txt", "wb");
+		FILE* temp2 = fopen("temp.txt", "rb");
+		while (fread(&fileTeam,sizeof(TeamDetails),1,temp2))
+		{
+			fwrite(&fileTeam, sizeof(TeamDetails), 1, league2);
+		}
+		fclose(league2);
+		fclose(temp2);
+
 	}
 	
+	
+	leagueStatus++;
+	config_file_handling(4);
+	config_file_handling(31);
 }
 
 void start_league_page() {
@@ -817,6 +1022,7 @@ void buy_player(Players player, Teams team) {
 
 	change_teamsfile(team);
 	change_playersfile(player);
+	coach_page(team);
 }
 
 void buy_player_page(Teams team) {
@@ -873,7 +1079,7 @@ void buy_player_page(Teams team) {
 		}
 	} while (flag == 0);
 	if (choice != -1)buy_player(player, team);
-	coach_page(team);
+	else coach_page(team);
 }
 
 void sell_player(Players player, Teams team, int index) {
@@ -884,6 +1090,7 @@ void sell_player(Players player, Teams team, int index) {
 
 	change_playersfile(player);
 	change_teamsfile(team);
+	coach_page(team);
 }
 
 void sell_player_page(Teams team) {
@@ -924,7 +1131,7 @@ void sell_player_page(Teams team) {
 		if (flag == 0) warning("This id is not available\n");
 	} while (flag == 0);
 	if (choice != -1)sell_player(team.players[index], team, index);
-	coach_page(team);
+	else coach_page(team);
 }
 
 void submit_squad(Teams team) {
@@ -967,18 +1174,33 @@ void sort(TeamDetails *target) {
 	} while (repeated);
 }
 
-void league_standing(Teams team) {
+void league_standing() {
 	TeamDetails all_teams[4];
 	int index = 0, color = 0;
-	FILE* league = fopen("league.txt", "r");
+	FILE* league = fopen("league.txt", "rb");
 	while (fread(&all_teams[index],sizeof(TeamDetails),1,league))
 	{
 		index++;
 	}
 	fclose(league);
 	sort(all_teams);
-	//Team Name, Played, Won, Drawn, Lost, GF, GA, GD,Points
 	system("cls");
+	if (leagueStatus == 7) {
+		printf("\n              The cup goes to %s\n", all_teams[0].name);
+		FILE* teamsFile = fopen("teams.txt", "rb");
+		Teams team;
+		while (fread(&team,TEAMS_SIZE,1,teamsFile))
+		{
+			if (strcmp(team.name, all_teams[0].name) == 0) {
+				team.trophies++;
+				break;
+			}
+		}
+		fclose(teamsFile);
+		change_teamsfile(team);
+	}
+	//Team Name, Played, Won, Drawn, Lost, GF, GA, GD,Points
+	
 	printf("\n");
 	printf("============================================================================================================================================\n");
 	printf("||               Team name               |   Played    |   Won   |   Drawn   |    Lost    |    GA    |    GF    |    GD    |    Points    ||\n");
@@ -990,7 +1212,7 @@ void league_standing(Teams team) {
 		print_col_int(all_teams[i].drawn, 11, color);
 		print_col_int(all_teams[i].lost, 12, color);
 		print_col_int(all_teams[i].ga, 10, color);
-		print_col_int(all_teams[i].gf, 10, color);
+		print_col_int(-all_teams[i].gf, 10, color);
 		print_col_int(all_teams[i].gd, 10, color);
 		print_col_int(all_teams[i].points, 14, color);
 		printf("|");
@@ -1001,7 +1223,6 @@ void league_standing(Teams team) {
 	printf("Press enter to continue!\n");
 	getchar();
 	getchar();
-	coach_page(team);
 }
 
 void select_squad(Teams team) {
@@ -1053,12 +1274,16 @@ void select_squad(Teams team) {
 	TeamDetails teamDetail;
 	FILE* league = fopen("league.txt", "rb");
 	FILE* temp = fopen("temp.txt", "wb");
-	index = 0;
+	
 	int attackingPower = 0, defencingPower = 0;
+	index = 0;
 	while (fread(&teamDetail,sizeof(TeamDetails),1,league))
 	{
 		attackingPower = 0, defencingPower = 0;
 		if (teamDetail.id == team.id) {
+			for (int i = 0; i < 5; i++) {
+				teamDetail.lastPlayersIds[i] = teamDetail.playersids[i];
+			}
 			for (int i = 0; i < 8; i++) {
 				if (is_in(selectedIds, team.players[i].id, 5)) {
 					teamDetail.players[index] = team.players[i];
@@ -1086,7 +1311,10 @@ void select_squad(Teams team) {
 	fclose(league2);
 	fclose(temp2);
 	config_file_handling(3);
+	team.ready = 1;
+	change_teamsfile(team);
 	coach_page(team);
+	
 }
 
 void team_fixture(Teams team) {
@@ -1188,7 +1416,7 @@ void coach_page(Teams team) {
 	printf("Team budget: %d    Number of players: %d\n", team.budget, team.numberOfPlayers);
 	printf("1)Buy a player\n");
 	printf("2)Sell a player\n");
-	if (transferWindow) printf("3)Submit squad\n");
+	if (!leagueStatus) printf("3)Submit squad\n");
 	else printf("3)Select squad\n");
 	printf("4)League Standing\n");
 	printf("5)Fixtures\n");
@@ -1204,7 +1432,8 @@ void coach_page(Teams team) {
 		switch (choice)
 		{
 		case 1:
-			if (!transferWindow) {
+			if (leagueStatus == 7)warning("The season ended!\n");
+			else if (!transferWindow) {
 				warning("Transfer window is closed!\n");
 			}
 			else if (team.ready) {
@@ -1218,7 +1447,8 @@ void coach_page(Teams team) {
 				flag = 0;
 			}break;
 		case 2:
-			if (!transferWindow) {
+			if (leagueStatus == 7)warning("The season ended!\n");
+			else if (!transferWindow) {
 				warning("Transfer window is closed!\n");
 			}
 			else if (team.ready) {
@@ -1232,7 +1462,8 @@ void coach_page(Teams team) {
 				flag = 0;
 			}break;
 		case 3:
-			if (transferWindow) {
+			if (leagueStatus == 7)warning("The season ended!\n");
+			else if (!leagueStatus) {
 				if (team.numberOfPlayers != 8) warning("You don't have enough players to submit your squad!\n");
 				else if(team.ready) warning("You have submitted your squad!\n");
 				else { 
@@ -1242,7 +1473,8 @@ void coach_page(Teams team) {
 				}
 			}
 			else {
-				if (!team.ready)warning("You are not in the league!\n");
+				if (transferWindow)warning("Transfer window is open!\n");
+				else if (team.ready)warning("You have selected your squad!\n");
 				else {
 					select_squad(team);
 					flag = 0;
@@ -1251,23 +1483,25 @@ void coach_page(Teams team) {
 			break;
 		case 4:
 			if (!leagueStatus) warning("League has not started yet!\n");
-			else if (!team.ready) warning("You are not in the league!\n");
+			//else if (!team.ready)warning("You are not in the league!\n");
 			else {
-				league_standing(team);
+				league_standing();
+				coach_page(team);
 				flag = 0;
 			}
 			break;
 		case 5:
 			if (!leagueStatus) warning("League has not started yet!\n");
-			else if (!team.ready) warning("You are not in the league!\n");
+			//else if (!team.ready) warning("You are not in the league!\n");
 			else {
 				team_fixture(team);
 				flag = 0;
 			}
 			break;
 		case 6:
-			if (!leagueStatus) warning("League has not started yet!\n");
-			else if (!team.ready) warning("You are not in the league!\n");
+			if (leagueStatus == 7)warning("The season ended!\n");
+			else if (!leagueStatus) warning("League has not started yet!\n");
+			//else if (!team.ready) warning("You are not in the league!\n");
 			else {
 				int stat = upcoming_opponent(team);
 				flag = !stat;
@@ -1380,12 +1614,13 @@ void files_initialize() {
 
 	if (!file_exists("config.txt")) {
 		FILE* config = fopen("config.txt", "w");
-		fprintf(config, "0,0,1,0,0,");//nomber of teams, number of players, transferWindow, numberOfReadyTeams, league status
+		fprintf(config, "0,0,1,0,0,1,");//nomber of teams, number of players, transferWindow, numberOfReadyTeams, league status, half season status
 		fclose(config);
 	}
 	else {
 		transferWindow = number_of_objects(3);
 		leagueStatus = number_of_objects(5);
+		halfStatus = number_of_objects(6);
 	}
 }
 
