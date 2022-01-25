@@ -100,13 +100,46 @@ void select_squad(Teams team);
 void start_league(int selectedIds[4]);
 void start_week();
 void open_transfer();
+void welcome();
 
 int main()
 {
+	system("color 06");
 	files_initialize();
+	welcome();
+}
+
+void welcome() {
+	printf("                    .----------------.  .----------------.  .----------------.  .----------------.                            \n");
+	printf("                    | .--------------. || .--------------. || .--------------. || .--------------. |                          \n");
+	printf("                    | |  _________   | || |  _________   | || |     ______   | || |  ____  ____  | |                          \n");
+	printf("                    | | |  _   _  |  | || | |_   ___  |  | || |   .' ___  |  | || | |_   ||   _| | |                          \n");
+	printf("                    | | |_/ | | \\_|  | || |   | |_  \\_|  | || |  / .'   \\_|  | || |   | |__| |   | |                       \n");
+	printf("                    | |     | |      | || |   |  _|  _   | || |  | |         | || |   |  __  |   | |                          \n");
+	printf("                    | |    _| |_     | || |  _| |___/ |  | || |  \\ `.___.'\\  | || |  _| |  | |_  | |                        \n");
+	printf("                    | |   |_____|    | || | |_________|  | || |   `._____.'  | || | |____||____| | |                          \n");
+	printf("                    | |              | || |              | || |              | || |              | |                          \n");
+	printf("                    | '--------------' || '--------------' || '--------------' || '--------------' |                          \n");
+	printf("                     '----------------'  '----------------'  '----------------'  '----------------'                           \n");
+	printf(" .----------------.  .----------------.  .----------------.  .----------------.  .----------------.  .----------------.       \n");
+	printf("| .--------------. || .--------------. || .--------------. || .--------------. || .--------------. || .--------------. |      \n");
+	printf("| |   _____      | || |  _________   | || |      __      | || |    ______    | || | _____  _____ | || |  _________   | |      \n");
+	printf("| |  |_   _|     | || | |_   ___  |  | || |     /  \\     | || |  .' ___  |   | || ||_   _||_   _|| || | |_   ___  |  | |     \n");
+	printf("| |    | |       | || |   | |_  \\_|  | || |    / /\\ \\    | || | / .'   \\_|   | || |  | |    | |  | || |   | |_  \\_|  | | \n");
+	printf("| |    | |   _   | || |   |  _|  _   | || |   / ____ \\   | || | | |    ____  | || |  | '    ' |  | || |   |  _|  _   | |     \n");
+	printf("| |   _| |__/ |  | || |  _| |___/ |  | || | _/ /    \\ \\_ | || | \\ `.___]  _| | || |   \\ `--' /   | || |  _| |___/ |  | |  \n");
+	printf("| |  |________|  | || | |_________|  | || ||____|  |____|| || |  `._____.'   | || |    `.__.'    | || | |_________|  | |      \n");
+	printf("| |              | || |              | || |              | || |              | || |              | || |              | |      \n");
+	printf("| '--------------' || '--------------' || '--------------' || '--------------' || '--------------' || '--------------' |      \n");
+	printf(" '----------------'  '----------------'  '----------------'  '----------------'  '----------------'  '----------------'       \n");
+	printf("\n                                             WELCOME TO THE TECH LEAGUE\n");
+	printf("                                               press enter to continue\n");
+	getchar();
+	for (unsigned int i = 0; i < 1000000000; i++) {
+		if (i % 17000000 == 0)printf("%c ", 178);
+	}
+	printf("\n");
 	login_page();
-	//system("color 17");
-	//printf("sdf");
 }
 
 bool file_exists(const char* filename) {
@@ -207,7 +240,9 @@ int config_file_handling(int change) {
 
 void warning(char* text) {
 	set_color(2);
-	printf(text);
+	char temp[MAX_LENGTH] = "\u274E";
+	strcat(temp, text);
+	printf(temp);
 	reset_color();
 }
 
@@ -548,7 +583,7 @@ void end_season() {
 }
 
 void admin_page() {
-
+	system("color 03");
 	int choice;
 	system("cls");
 	printf("ADMIN PAGE\n");
@@ -1410,9 +1445,9 @@ int upcoming_opponent(Teams team) {
 }
 
 void coach_page(Teams team) {
+	system("color 03");
 	system("cls");
 	int choice;
-
 	printf("Team budget: %d    Number of players: %d\n", team.budget, team.numberOfPlayers);
 	printf("1)Buy a player\n");
 	printf("2)Sell a player\n");
@@ -1522,6 +1557,7 @@ void coach_page(Teams team) {
 
 int login() {
 	system("cls");
+	system("color 01");
 	Teams team;
 	char teamname[MAX_LENGTH], password[MAX_LENGTH];
 	do
@@ -1581,8 +1617,9 @@ void forget_password() {
 }
 
 void login_page() {
-	int choice;
+	system("color 06");
 	system("cls");
+	int choice;
 	printf("1)Login\n2)Forget password\n");
 	do
 	{
