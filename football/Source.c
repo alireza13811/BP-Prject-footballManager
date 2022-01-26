@@ -2,6 +2,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#ifdef _WIN32
+#include <Windows.h>
+#else
+#include <unistd.h>
+#endif
 
 #define bool  _Bool
 #define false 0
@@ -80,7 +85,6 @@ void buy_player(Players player, Teams team);
 void buy_player_page(Teams team);
 void sell_player(Players player, Teams team, int index);
 void sell_player_page(Teams team);
-void coach_page(Teams team);
 int login();
 void forget_password();
 void login_page();
@@ -135,9 +139,14 @@ void welcome() {
 	printf("\n                                             WELCOME TO THE TECH LEAGUE\n");
 	printf("                                               press enter to continue\n");
 	getchar();
-	for (unsigned int i = 0; i < 1000000000; i++) {
-		if (i % 17000000 == 0)printf("%c ", 178);
-	}
+	int i = 0;
+	do
+	{
+		printf("%c ", 178);
+		Sleep(50);
+		i++;
+		if (i == 60)break;
+	} while (true);
 	printf("\n");
 	login_page();
 }
