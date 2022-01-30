@@ -17,9 +17,9 @@
 #define PLAYERS_SIZE sizeof(Players)
 #define TEAMS_SIZE sizeof(Teams)
 
-int transferWindow;
-int leagueStatus;
-int halfStatus;
+int transferWindow = 1;
+int leagueStatus = 0;
+int halfStatus = 1;
 
 typedef struct {
 	int id;
@@ -36,6 +36,8 @@ typedef struct {
 	int numberOfPlayers;
 	int trophies;
 	int ready;
+	int bet;
+	int betResult;
 	char name[MAX_LENGTH];
 	char email[MAX_LENGTH];
 	char password[MAX_LENGTH];
@@ -105,12 +107,16 @@ void start_league(int selectedIds[4]);
 void start_week();
 void open_transfer();
 void welcome();
+char* encode(char* password);
+char* decode(char* password);
+void coach_bet(Teams team);
 
 int main()
 {
 	system("color 06");
 	files_initialize();
 	welcome();
+
 }
 
 void welcome() {
@@ -249,9 +255,7 @@ int config_file_handling(int change) {
 
 void warning(char* text) {
 	set_color(2);
-	char temp[MAX_LENGTH] = "\u274E";
-	strcat(temp, text);
-	printf(temp);
+	printf("%s",text);
 	reset_color();
 }
 
@@ -293,9 +297,11 @@ void add_team() {
 		team.numberOfPlayers = 0;
 		team.trophies = 0;
 		team.ready = 0;
+		team.bet = 0;
+		team.betResult = -1;
 		strcpy(team.name, teamName);
 		strcpy(team.email, email);
-		strcpy(team.password, email);
+		strcpy(team.password, encode(email));
 		fwrite(&team, sizeof(Teams), 1, teams);
 		fclose(teams);
 	}
@@ -311,6 +317,7 @@ void add_player() {
 	scanf("%s", playerName);
 	do
 	{
+		system("color 03");
 		printf("Attacking power: ");
 		scanf("%d", &attackingPower);
 		if (attackingPower >= 0 && attackingPower <= 100) break;
@@ -318,6 +325,7 @@ void add_player() {
 	} while (true);
 	do
 	{
+		system("color 03");
 		printf("Defencing power: ");
 		scanf("%d", &defendingPower);
 		if (defendingPower >= 0 && defendingPower <= 100) break;
@@ -325,6 +333,7 @@ void add_player() {
 	} while (true);
 	do
 	{
+		system("color 03");
 		printf("Value: ");
 		scanf("%d", &value);
 		if (value >= 10 && value <= 20) break;
@@ -592,9 +601,10 @@ void end_season() {
 }
 
 void admin_page() {
-	system("color 03");
+	
 	int choice;
 	system("cls");
+	system("color 03");
 	printf("ADMIN PAGE\n");
 	printf("1)Add team\n");
 	printf("2)Add player\n");
@@ -615,6 +625,7 @@ void admin_page() {
 	int flag = 0;
 	do
 	{
+		system("color 03");
 		flag = 0;
 		printf("\nEnter your choice: ");
 		scanf("%d", &choice);
@@ -821,6 +832,17 @@ void start_week() {
 						}
 					}
 				}
+				mainTeam.betResult = -1;
+				if (mainTeam.bet) {
+					if ((mainTeam.bet == 1 && Agoals > Bgoals) || (mainTeam.bet == 2 && Bgoals > Agoals) || (mainTeam.bet == 3 && Agoals == Bgoals)) {
+						mainTeam.betResult = 1;
+						mainTeam.budget++;
+					}
+					else {
+						mainTeam.betResult = 0;
+					}
+				}
+				mainTeam.bet = 0;
 				mainTeam.ready = 0;
 				change_teamsfile(mainTeam);
 			}
@@ -847,6 +869,17 @@ void start_week() {
 						}
 					}
 				}
+				mainTeam.betResult = -1;
+				if (mainTeam.bet) {
+					if ((mainTeam.bet == 1 && Agoals < Bgoals) || (mainTeam.bet == 2 && Bgoals < Agoals) || (mainTeam.bet == 3 && Agoals == Bgoals)) {
+						mainTeam.betResult = 1;
+						mainTeam.budget++;
+					}
+					else {
+						mainTeam.betResult = 0;
+					}
+				}
+				mainTeam.bet = 0;
 				mainTeam.ready = 0;
 				change_teamsfile(mainTeam);
 			}
@@ -997,7 +1030,7 @@ void change_password(char teamName[MAX_LENGTH], char password[MAX_LENGTH]) {
 	while (fread(&team, sizeof(Teams), 1, teamsFile))
 	{
 		if (strcmp(team.name, teamName) == 0) {
-			strcpy(team.password, password);
+			strcpy(team.password, encode(password));
 			break;
 		}
 	}
@@ -1453,11 +1486,28 @@ int upcoming_opponent(Teams team) {
 	return 1;
 }
 
+int is_in_league(Teams team) {
+	TeamDetails teamDeteail;
+	FILE* teamsFile = fopen("league.txt", "rb");
+	while (fread(&teamDeteail,sizeof(TeamDetails),1,teamsFile))
+	{
+		if (teamDeteail.id == team.id) {
+			fclose(teamsFile);
+			return 1;
+		}
+	}
+	fclose(teamsFile);
+	return 0;
+}
+
 void coach_page(Teams team) {
-	system("color 03");
+	
 	system("cls");
+	system("color 03");
 	int choice;
 	printf("Team budget: %d    Number of players: %d\n", team.budget, team.numberOfPlayers);
+	if (team.betResult == 1)printf("You have correctly prospected the game result!\n");
+	if (team.betResult == 0)printf("You have not correctly prospected the game result!\n");
 	printf("1)Buy a player\n");
 	printf("2)Sell a player\n");
 	if (!leagueStatus) printf("3)Submit squad\n");
@@ -1466,7 +1516,8 @@ void coach_page(Teams team) {
 	printf("5)Fixtures\n");
 	printf("6)Upcoming Opponent\n");
 	printf("7)Change Password\n");
-	printf("8)Exit\n");
+	printf("8)Bet(1 dollar)\n");
+	printf("9)Exit\n");
 	int flag = 1;
 	do
 	{
@@ -1527,7 +1578,7 @@ void coach_page(Teams team) {
 			break;
 		case 4:
 			if (!leagueStatus) warning("League has not started yet!\n");
-			//else if (!team.ready)warning("You are not in the league!\n");
+			else if (!is_in_league(team))warning("You are not in the league!\n");
 			else {
 				league_standing();
 				coach_page(team);
@@ -1536,7 +1587,7 @@ void coach_page(Teams team) {
 			break;
 		case 5:
 			if (!leagueStatus) warning("League has not started yet!\n");
-			//else if (!team.ready) warning("You are not in the league!\n");
+			else if (!is_in_league(team))warning("You are not in the league!\n");
 			else {
 				team_fixture(team);
 				flag = 0;
@@ -1545,7 +1596,7 @@ void coach_page(Teams team) {
 		case 6:
 			if (leagueStatus == 7)warning("The season ended!\n");
 			else if (!leagueStatus) warning("League has not started yet!\n");
-			//else if (!team.ready) warning("You are not in the league!\n");
+			else if (!is_in_league(team))warning("You are not in the league!\n");
 			else {
 				int stat = upcoming_opponent(team);
 				flag = !stat;
@@ -1554,6 +1605,17 @@ void coach_page(Teams team) {
 		case 7:
 			forget_password();
 			flag = 0;
+			break;
+		case 8:
+			if (!leagueStatus) warning("League has not started yet!\n");
+			else if (!is_in_league(team))warning("You are not in the league!\n");
+			else if (team.bet)warning("You have put a bet before!\n");
+			else if (team.budget == 0)warning("You don't have enough budget!\n");
+			else {
+				coach_bet(team);
+				flag = 0;
+			}
+			break;
 		default:
 			login_page();
 			flag = 0;
@@ -1564,13 +1626,31 @@ void coach_page(Teams team) {
 
 }
 
+void coach_bet(Teams team) {
+	int choice;
+	printf("Which result do you prospect for this game?\n");
+	printf("1)Win\n");
+	printf("2)Lose\n");
+	printf("3)Draw\n");
+	do
+	{
+		scanf("%d", &choice);
+		if (choice != 1 && choice != 2 && choice != 3) warning("Invalid input\n");
+		else break;
+	} while (true);
+	team.bet = choice;
+	team.budget--;
+	change_teamsfile(team);
+	coach_page(team);
+}
+
 int login() {
 	system("cls");
-	system("color 01");
 	Teams team;
 	char teamname[MAX_LENGTH], password[MAX_LENGTH];
 	do
 	{
+		system("color 01");
 		printf("Team name:");
 		scanf("%s", teamname);
 		printf("Password:");
@@ -1582,7 +1662,7 @@ int login() {
 		else {
 			FILE* teamsFile = fopen("teams.txt", "rb");
 			while (fread(&team, sizeof(Teams), 1, teamsFile)) {
-				if (strcmp(team.name, teamname) == 0 && strcmp(team.password, password) == 0) {
+				if (strcmp(team.name, teamname) == 0 && strcmp(team.password, decode(team.password)) == 0) {
 					coach_page(team);
 					break;
 				}
@@ -1626,13 +1706,14 @@ void forget_password() {
 }
 
 void login_page() {
-	system("color 06");
+	
 	system("cls");
+	system("color 06");
 	int choice;
 	printf("1)Login\n2)Forget password\n");
 	do
 	{
-		
+		system("color 06");
 		scanf("%d", &choice);
 		if (choice == 1) {
 			login();
@@ -1658,6 +1739,11 @@ void files_initialize() {
 		fclose(players);
 	}
 
+	if (!file_exists("league.txt")) {
+		FILE* players = fopen("league.txt", "w");
+		fclose(players);
+	}
+
 	if (!file_exists("config.txt")) {
 		FILE* config = fopen("config.txt", "w");
 		fprintf(config, "0,0,1,0,0,1,");//nomber of teams, number of players, transferWindow, numberOfReadyTeams, league status, half season status
@@ -1670,3 +1756,22 @@ void files_initialize() {
 	}
 }
 
+char* encode(char* password) {
+	int i = 0;
+	while (*(password+i))
+	{
+		*(password + i) = (int)*(password + i) - 15;
+		i++;
+	}
+	return password;
+}
+
+char* decode(char* password) {
+	int i = 0;
+	while (*(password + i))
+	{
+		*(password + i) = (int)*(password + i) + 15;
+		i++;
+	}
+	return password;
+}
