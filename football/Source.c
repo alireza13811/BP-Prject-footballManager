@@ -767,6 +767,25 @@ void start_league(int selectedIds[4]) {
 	transferWindow = 0;
 	config_file_handling(4);
 	config_file_handling(31);
+
+	FILE* teams1 = fopen("teams.txt", "rb");
+	FILE* temp = fopen("temp.txt", "wb");
+	while (fread(&team,TEAMS_SIZE,1,teams1))
+	{
+		team.ready = 0;
+		fwrite(&team, TEAMS_SIZE, 1, temp);
+	}
+	fclose(teams1);
+	fclose(temp);
+
+	FILE* teams2 = fopen("teams.txt", "wb");
+	FILE* temp2 = fopen("temp.txt", "rb");
+	while (fread(&team,TEAMS_SIZE,1,temp2))
+	{
+		fwrite(&team, TEAMS_SIZE, 1, teams2);
+	}
+	fclose(teams2);
+	fclose(temp2);
 }
 
 void start_week() {
@@ -1155,6 +1174,7 @@ void buy_player_page(Teams team) {
 			warning("Player id is not available!\n");
 		}
 	} while (flag == 0);
+	fclose(playersFile);
 	if (choice != -1)buy_player(player, team);
 	else coach_page(team);
 }
@@ -1501,13 +1521,12 @@ int is_in_league(Teams team) {
 }
 
 void coach_page(Teams team) {
-	
 	system("cls");
 	system("color 03");
 	int choice;
 	printf("Team budget: %d    Number of players: %d\n", team.budget, team.numberOfPlayers);
 	if (team.betResult == 1)printf("You have correctly prospected the game result!\n");
-	if (team.betResult == 0)printf("You have not correctly prospected the game result!\n");
+	else if (team.betResult == 0)printf("You have not correctly prospected the game result!\n");
 	printf("1)Buy a player\n");
 	printf("2)Sell a player\n");
 	if (!leagueStatus) printf("3)Submit squad\n");
@@ -1564,7 +1583,6 @@ void coach_page(Teams team) {
 				else { 
 					submit_squad(team);
 					team.ready = 1;
-					flag = 0;
 				}
 			}
 			else {
@@ -1650,7 +1668,6 @@ int login() {
 	char teamname[MAX_LENGTH], password[MAX_LENGTH];
 	do
 	{
-		system("color 01");
 		printf("Team name:");
 		scanf("%s", teamname);
 		printf("Password:");
@@ -1708,12 +1725,10 @@ void forget_password() {
 void login_page() {
 	
 	system("cls");
-	system("color 06");
 	int choice;
 	printf("1)Login\n2)Forget password\n");
 	do
 	{
-		system("color 06");
 		scanf("%d", &choice);
 		if (choice == 1) {
 			login();
