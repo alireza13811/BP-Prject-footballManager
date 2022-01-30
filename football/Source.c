@@ -317,7 +317,6 @@ void add_player() {
 	scanf("%s", playerName);
 	do
 	{
-		system("color 03");
 		printf("Attacking power: ");
 		scanf("%d", &attackingPower);
 		if (attackingPower >= 0 && attackingPower <= 100) break;
@@ -325,7 +324,6 @@ void add_player() {
 	} while (true);
 	do
 	{
-		system("color 03");
 		printf("Defencing power: ");
 		scanf("%d", &defendingPower);
 		if (defendingPower >= 0 && defendingPower <= 100) break;
@@ -333,7 +331,6 @@ void add_player() {
 	} while (true);
 	do
 	{
-		system("color 03");
 		printf("Value: ");
 		scanf("%d", &value);
 		if (value >= 10 && value <= 20) break;
@@ -604,7 +601,6 @@ void admin_page() {
 	
 	int choice;
 	system("cls");
-	system("color 03");
 	printf("ADMIN PAGE\n");
 	printf("1)Add team\n");
 	printf("2)Add player\n");
@@ -625,7 +621,6 @@ void admin_page() {
 	int flag = 0;
 	do
 	{
-		system("color 03");
 		flag = 0;
 		printf("\nEnter your choice: ");
 		scanf("%d", &choice);
@@ -1522,7 +1517,6 @@ int is_in_league(Teams team) {
 
 void coach_page(Teams team) {
 	system("cls");
-	system("color 03");
 	int choice;
 	printf("Team budget: %d    Number of players: %d\n", team.budget, team.numberOfPlayers);
 	if (team.betResult == 1)printf("You have correctly prospected the game result!\n");
@@ -1666,8 +1660,10 @@ int login() {
 	system("cls");
 	Teams team;
 	char teamname[MAX_LENGTH], password[MAX_LENGTH];
+	int flag = 0;
 	do
 	{
+		flag = 0;
 		printf("Team name:");
 		scanf("%s", teamname);
 		printf("Password:");
@@ -1680,13 +1676,14 @@ int login() {
 			FILE* teamsFile = fopen("teams.txt", "rb");
 			while (fread(&team, sizeof(Teams), 1, teamsFile)) {
 				if (strcmp(team.name, teamname) == 0 && strcmp(team.password, decode(team.password)) == 0) {
-					coach_page(team);
+					flag = 1;
 					break;
 				}
 			}
 			fclose(teamsFile);
+			if (flag)coach_page(team);;
 		}
-		warning("Team Name or password is incorrect!!\n");
+		if (!flag)warning("Team Name or password is incorrect!!\n");
 	} while (1);
 }
 
